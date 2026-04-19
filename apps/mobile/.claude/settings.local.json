@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=95 --no-header)",
+      "Bash(make ci *)",
+      "Bash(ruff check *)",
+      "Bash(mypy packages/ --ignore-missing-imports)",
+      "Bash(pytest tests/ packages/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=95 --no-header)",
+      "Bash(python -m ruff check packages/ tests/)",
+      "Bash(python -m mypy packages/ --ignore-missing-imports)",
+      "Bash(python -m pytest tests/ packages/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=95 --no-header)",
+      "Bash(pip install *)",
+      "Bash(python -m ruff check --fix packages/ tests/)",
+      "Bash(mkdir -p /c/Users/mcobe/Projects/finsight-ai/packages/analytics/analytics)",
+      "Bash(mkdir -p /c/Users/mcobe/Projects/finsight-ai/packages/analytics/tests)",
+      "Bash(mkdir -p /c/Users/mcobe/Projects/finsight-ai/scripts)",
+      "Bash(python -m pytest packages/analytics/ -v)",
+      "Bash(python -m pytest packages/analytics/ -v -W error::ResourceWarning)",
+      "Bash(python *)"
+    ]
+  }
+}

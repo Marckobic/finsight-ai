@@ -39,3 +39,10 @@ infra/docker/.env
 # Logs
 *.log
 logs/
+
+# EAS / Expo
+google-service-account.json
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
