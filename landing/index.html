@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinSight.ai — Know Your Runway</title>
+  <meta name="description" content="AI-powered financial clarity for founders. Know exactly how long your money lasts and what to do about it." />
+  <meta property="og:title" content="FinSight.ai — Know Your Runway" />
+  <meta property="og:description" content="AI-powered financial clarity for founders. Know exactly how long your money lasts and what to do about it." />
+  <meta property="og:url" content="https://finsight-ai-tawny.vercel.app" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #131313;
+      --surface: #1c1c1c;
+      --border: rgba(255,255,255,0.08);
+      --accent: #FF6B2B;
+      --accent-dim: rgba(255,107,43,0.15);
+      --text: #f0f0f0;
+      --text-muted: rgba(255,255,255,0.5);
+      --green: #4ADE80;
+      --green-dim: rgba(74,222,128,0.12);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 5%;
+      background: rgba(19,19,19,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+    .logo span { color: var(--accent); }
+    .nav-cta {
+      background: var(--accent); color: #fff;
+      padding: 10px 22px; border-radius: 8px;
+      font-weight: 600; font-size: 14px;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .nav-cta:hover { opacity: 0.88; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 5% 80px;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255,107,43,0.10) 0%, transparent 70%);
+    }
+    .hero-inner { max-width: 720px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(255,107,43,0.3);
+      color: var(--accent);
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+      padding: 6px 14px; border-radius: 100px;
+      margin-bottom: 28px;
+    }
+    .badge::before { content: "●"; font-size: 8px; }
+
+    h1 {
+      font-size: clamp(38px, 7vw, 64px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 22px;
+    }
+    h1 em { color: var(--accent); font-style: normal; }
+
+    .hero-sub {
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: var(--text-muted);
+      max-width: 520px;
+      margin: 0 auto 40px;
+      line-height: 1.65;
+    }
+
+    .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      padding: 16px 36px; border-radius: 10px;
+      font-weight: 700; font-size: 16px;
+      text-decoration: none;
+      transition: opacity 0.15s, transform 0.15s;
+      display: inline-block;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .btn-ghost {
+      background: transparent; color: var(--text);
+      padding: 16px 28px; border-radius: 10px;
+      font-weight: 600; font-size: 16px;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: border-color 0.15s;
+      display: inline-block;
+    }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.3); }
+
+    .hero-note {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ── MOCK UI ── */
+    .mockup-wrap {
+      margin: 70px auto 0;
+      max-width: 360px;
+    }
+    .mockup {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 28px;
+      text-align: left;
+    }
+    .mock-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .mock-metric { font-size: 36px; font-weight: 800; letter-spacing: -1px; color: var(--green); }
+    .mock-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; margin-bottom: 22px; }
+    .mock-divider { height: 1px; background: var(--border); margin-bottom: 22px; }
+    .mock-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .mock-row-label { font-size: 14px; color: var(--text-muted); }
+    .mock-row-value { font-size: 14px; font-weight: 600; }
+    .mock-ai {
+      background: var(--accent-dim);
+      border: 1px solid rgba(255,107,43,0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.85);
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+    .mock-ai strong { color: var(--accent); }
+
+    /* ── PROBLEM ── */
+    .section { padding: 100px 5%; }
+    .section-inner { max-width: 900px; margin: 0 auto; }
+    .section-tag { font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    h2 { font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -0.8px; line-height: 1.2; margin-bottom: 20px; }
+    h2 em { color: var(--accent); font-style: normal; }
+    .section-text { font-size: 18px; color: var(--text-muted); max-width: 600px; line-height: 1.7; }
+
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 50px;
+    }
+    .problem-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .problem-icon { font-size: 28px; margin-bottom: 14px; }
+    .problem-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .problem-card p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── HOW IT WORKS ── */
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-top: 50px; }
+    .step { position: relative; }
+    .step-num {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--accent-dim);
+      border: 1px solid rgba(255,107,43,0.3);
+      color: var(--accent);
+      font-weight: 700; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+    }
+    .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── FEATURES ── */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 50px; }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: rgba(255,107,43,0.3); }
+    .feature-icon { font-size: 24px; margin-bottom: 14px; }
+    .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+    .feature-tag {
+      display: inline-block;
+      background: var(--accent-dim);
+      border: 1px solid rgba(255,107,43,0.25);
+      color: var(--accent);
+      font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 4px;
+      margin-top: 12px;
+    }
+
+    /* ── RUNWAY HIGHLIGHT ── */
+    .runway-section {
+      padding: 80px 5%;
+      background: linear-gradient(135deg, rgba(255,107,43,0.06) 0%, transparent 60%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .runway-inner { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+    @media (max-width: 640px) { .runway-inner { grid-template-columns: 1fr; } }
+    .runway-metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+    }
+    .runway-metric .month-num { font-size: 72px; font-weight: 800; letter-spacing: -3px; color: var(--green); line-height: 1; }
+    .runway-metric .month-label { font-size: 18px; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+    .runway-metric .runway-bar { height: 6px; background: var(--border); border-radius: 3px; margin: 20px 0; overflow: hidden; }
+    .runway-metric .runway-fill { height: 100%; width: 65%; background: linear-gradient(90deg, var(--green), #22c55e); border-radius: 3px; }
+    .runway-metric .runway-note { font-size: 13px; color: var(--text-muted); }
+
+    /* ── CTA ── */
+    .cta-section {
+      padding: 120px 5%;
+      text-align: center;
+      background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(255,107,43,0.08) 0%, transparent 70%);
+    }
+    .cta-section h2 { font-size: clamp(32px, 5vw, 52px); margin-bottom: 20px; }
+    .cta-section p { font-size: 18px; color: var(--text-muted); max-width: 480px; margin: 0 auto 40px; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 30px 5%;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    footer p { font-size: 13px; color: var(--text-muted); }
+    .footer-logo { font-size: 15px; font-weight: 700; }
+    .footer-logo span { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">FinSight<span>.ai</span></div>
+  <a href="https://finsight-ai-tawny.vercel.app" class="nav-cta">Try Free →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="badge">For Founders & Self-Employed</div>
+    <h1>Know your <em>runway</em>.<br/>Before it's too late.</h1>
+    <p class="hero-sub">
+      Most founders don't know their runway until it's too late. FinSight calculates exactly how long your money lasts — and tells you what to do to extend it.
+    </p>
+    <div class="hero-actions">
+      <a href="https://finsight-ai-tawny.vercel.app" class="btn-primary">Get My Runway →</a>
+      <a href="#how-it-works" class="btn-ghost">See How It Works</a>
+    </div>
+    <p class="hero-note">Free · No signup required · 2 minutes</p>
+
+    <!-- Mock UI -->
+    <div class="mockup-wrap">
+      <div class="mockup">
+        <div class="mock-label">Personal Runway</div>
+        <div class="mock-metric">14 mo</div>
+        <div class="mock-sub">Based on current spending</div>
+        <div class="mock-divider"></div>
+        <div class="mock-row">
+          <span class="mock-row-label">Monthly income (net)</span>
+          <span class="mock-row-value">$6,200</span>
+        </div>
+        <div class="mock-row">
+          <span class="mock-row-label">Monthly expenses</span>
+          <span class="mock-row-value">$4,100</span>
+        </div>
+        <div class="mock-row">
+          <span class="mock-row-label">Cash reserve</span>
+          <span class="mock-row-value">$58,000</span>
+        </div>
+        <div class="mock-ai">
+          <strong>AI Insight:</strong> If you reduce discretionary spending by $500/mo, your runway extends by <strong>4 months</strong> — enough time to close your next contract.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="section">
+  <div class="section-inner">
+    <div class="section-tag">The Problem</div>
+    <h2>Most founders are flying <em>blind</em></h2>
+    <p class="section-text">
+      You're focused on building. But without clear financial visibility, small mistakes compound until it's too late to react.
+    </p>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="problem-icon">😰</div>
+        <h3>No idea how long savings last</h3>
+        <p>You know the balance. You don't know how many months it buys you under real conditions.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">💸</div>
+        <h3>Taxes hit unexpectedly</h3>
+        <p>Self-employed? You pay quarterly taxes yourself. Most planning tools don't account for that.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">🔮</div>
+        <h3>No scenario planning</h3>
+        <p>"What if I cut this expense?" — you wonder. But without numbers, it's all just guessing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how-it-works" style="padding-top: 0;">
+  <div class="section-inner">
+    <div class="section-tag">How It Works</div>
+    <h2>Your runway in <em>2 minutes</em></h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Set your goal</h3>
+        <p>Extend runway, save a target amount, or reach financial independence. Founders get a dedicated goal type.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Enter your numbers</h3>
+        <p>Annual revenue or income, tax rate, expenses, savings. That's it — no accounts to connect, no data shared.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>See your baseline</h3>
+        <p>Personal Runway, Time to Goal, monthly cashflow — calculated instantly with your real after-tax income.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Run AI scenarios</h3>
+        <p>Pick a behavior to change. The AI shows impact, timeline delta, and a plain-English explanation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RUNWAY HIGHLIGHT -->
+<section class="runway-section">
+  <div class="runway-inner">
+    <div>
+      <div class="section-tag">For Founders</div>
+      <h2>Your Personal Runway<br/>is your <em>negotiating power</em></h2>
+      <p class="section-text" style="font-size: 16px; margin-top: 16px;">
+        When you know you have 12+ months of runway, you negotiate from strength — not desperation. You can afford to wait for the right investor, the right deal, the right hire.
+      </p>
+      <p class="section-text" style="font-size: 16px; margin-top: 12px;">
+        FinSight shows you this number clearly, and tells you exactly what levers to pull to extend it.
+      </p>
+    </div>
+    <div class="runway-metric">
+      <div class="month-num">11</div>
+      <div class="month-label">months of runway</div>
+      <div class="runway-bar"><div class="runway-fill"></div></div>
+      <div class="runway-note">⚠️ Consider reducing burn before next fundraise</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section">
+  <div class="section-inner">
+    <div class="section-tag">Features</div>
+    <h2>Built for the <em>self-employed</em> reality</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3>After-tax income calculation</h3>
+        <p>Enter your annual revenue or income + estimated tax rate. FinSight calculates your real after-tax monthly cashflow.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Personal Runway metric</h3>
+        <p>Savings ÷ monthly burn = months you can survive. Always visible on your dashboard.</p>
+        <span class="feature-tag">FOR FOUNDERS</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>AI scenario engine</h3>
+        <p>Simulate "reduce dining out" or "add freelance income" — see months saved and get a personalized explanation.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <h3>Works on any device</h3>
+        <p>Web app today. iOS and Android coming soon via TestFlight and Play Store early access.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>No account, no data sharing</h3>
+        <p>Your numbers stay in your session. No bank connections, no personal data stored.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛫</div>
+        <h3>Extend Runway goal</h3>
+        <p>A goal type built specifically for founders — focused on surviving and thriving through your build phase.</p>
+        <span class="feature-tag">FOR FOUNDERS</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>How long can you survive?<br/><em>Find out in 2 minutes.</em></h2>
+  <p>No signup. No bank connection. Just your number — and what to do with it.</p>
+  <a href="https://finsight-ai-tawny.vercel.app" class="btn-primary" style="font-size: 18px; padding: 18px 48px;">
+    Get My Runway →
+  </a>
+  <p style="margin-top: 20px; font-size: 13px; color: var(--text-muted);">
+    Questions or feedback? Reach out at marcobic.cobets@gmail.com
+  </p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">FinSight<span>.ai</span></div>
+  <p>Built for founders, by a founder · 2025</p>
+  <p>
+    <a href="https://finsight-ai-tawny.vercel.app" style="color: var(--accent); text-decoration: none;">Launch App →</a>
+  </p>
+</footer>
+
+</body>
+</html>

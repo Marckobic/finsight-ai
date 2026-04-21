@@ -183,9 +183,9 @@ export default function InputScreen(): React.JSX.Element {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* ── Header ── */}
           <View style={styles.header}>
-            <Text style={styles.moduleLabel}>Reality Layer</Text>
-            <Text style={styles.heading}>Capture Current{"\n"}Reality</Text>
-            <Text style={styles.subheading}>Precision here drives accuracy of your intelligence baseline.</Text>
+            <Text style={styles.moduleLabel}>Step 2 of 3</Text>
+            <Text style={styles.heading}>Your current{"\n"}numbers</Text>
+            <Text style={styles.subheading}>Takes 2 minutes. The more accurate, the more useful your runway estimate.</Text>
           </View>
 
           {/* ── Income Streams ── */}
@@ -215,7 +215,7 @@ export default function InputScreen(): React.JSX.Element {
                 </TouchableOpacity>
               </View>
             </View>
-            <InputField label="Annual Salary (Gross)" value={values.income} onChange={set("income")} />
+            <InputField label="Annual Revenue / Income (Gross)" value={values.income} onChange={set("income")} />
             <InputField
               label="Estimated Tax Rate"
               value={values.taxRate}
@@ -282,7 +282,7 @@ export default function InputScreen(): React.JSX.Element {
 
           {/* ── Intelligence Preview ── */}
           <View style={styles.previewCard}>
-            <Text style={styles.previewTitle}>Intelligence Preview</Text>
+            <Text style={styles.previewTitle}>Your cashflow snapshot</Text>
             <View style={styles.previewRow}>
               <Text style={styles.previewRowLabel}>Gross Annual</Text>
               <Text style={styles.previewRowValue}>${grossAnnual.toLocaleString()}</Text>
@@ -327,16 +327,16 @@ export default function InputScreen(): React.JSX.Element {
 
           {/* ── CTA ── */}
           <TouchableOpacity style={styles.ctaButton} onPress={handleContinue} activeOpacity={0.85}>
-            <Text style={styles.ctaLabel}>Build My Baseline</Text>
+            <Text style={styles.ctaLabel}>Calculate My Runway</Text>
             <MaterialIcons name="arrow-forward" size={20} color={COLORS.TEXT_ON_ORANGE} />
           </TouchableOpacity>
 
           {/* ── Security ── */}
           <View style={styles.secCard}>
-            <MaterialIcons name="security" size={20} color={COLORS.DISABLED} />
+            <MaterialIcons name="lock" size={20} color={COLORS.DISABLED} />
             <View>
-              <Text style={styles.secTitle}>Bank-Grade Encryption</Text>
-              <Text style={styles.secDesc}>Secured using AES-256 protocols and local-first encryption.</Text>
+              <Text style={styles.secTitle}>Stays on your device</Text>
+              <Text style={styles.secDesc}>No account needed. Your numbers are never stored or shared.</Text>
             </View>
           </View>
         </ScrollView>

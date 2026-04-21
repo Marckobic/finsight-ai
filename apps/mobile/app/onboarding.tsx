@@ -95,7 +95,7 @@ export default function OnboardingScreen(): React.JSX.Element {
           <Text style={styles.headlineAccent}>Start deciding.</Text>
         </Text>
         <Text style={styles.subheadline}>
-          Financial clarity for people with variable income and high-stakes goals.
+          Know your runway. Know what to do. Built for founders and freelancers — not spreadsheets.
         </Text>
 
         {/* ── Value prop card ── */}

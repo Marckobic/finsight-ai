@@ -87,12 +87,12 @@ export default function GoalScreen(): React.JSX.Element {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* ── Header ── */}
           <View style={styles.header}>
-            <Text style={styles.moduleLabel}>Sovereign Financial Orchestration / Module 01</Text>
-            <Text style={styles.heading}>Define Your{"\n"}Objective</Text>
+            <Text style={styles.moduleLabel}>Step 1 of 3</Text>
+            <Text style={styles.heading}>What are you{"\n"}working toward?</Text>
           </View>
 
           {/* ── Goal cards ── */}
-          <Text style={styles.sectionLabel}>Select Strategic Path</Text>
+          <Text style={styles.sectionLabel}>Pick your focus</Text>
           <View style={styles.cardGrid}>
             {GOAL_OPTIONS.slice(0, 4).map((opt) => {
               const active = selectedType === opt.type;
@@ -137,7 +137,7 @@ export default function GoalScreen(): React.JSX.Element {
 
           {/* ── Target capital ── */}
           <View style={styles.inputSection}>
-            <Text style={styles.fieldLabel}>Target Capital</Text>
+            <Text style={styles.fieldLabel}>Target Amount</Text>
             <View style={styles.amountRow}>
               <Text style={styles.dollarSign}>$</Text>
               <TextInput
@@ -154,7 +154,7 @@ export default function GoalScreen(): React.JSX.Element {
 
           {/* ── Deadline ── */}
           <View style={styles.inputSection}>
-            <Text style={styles.fieldLabel}>Maturity Date (MM/DD/YYYY)</Text>
+            <Text style={styles.fieldLabel}>By when? (MM/DD/YYYY)</Text>
             <View style={styles.dateRow}>
               <TextInput
                 style={styles.dateInput}
