@@ -38,7 +38,7 @@ for _pkg in [
 # ---------------------------------------------------------------------------
 import logging
 import traceback
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -56,6 +56,7 @@ from analytics.store import insert_event
 from analytics.metrics import calculate_session_summary, calculate_funnel
 from validation_gateway.health import health_tracker
 from apps.api.middleware.timing import TimingMiddleware
+from apps.api.ratelimit import client_key, explain_budget, explain_ip_limiter
 from apps.api.routers import baseline as baseline_router
 from apps.api.routers import scenario as scenario_router
 from apps.api.routers import explain as explain_router
@@ -109,14 +110,45 @@ app = FastAPI(
 # Middleware (order matters — outermost is added last)
 # ---------------------------------------------------------------------------
 
+# CORS. "*" is correct for a public, unauthenticated, cookie-less API, but it
+# should be a decision rather than a default: set FINSIGHT_ALLOWED_ORIGINS to a
+# comma-separated list to lock it down without a code change.
+_origins_env = os.environ.get("FINSIGHT_ALLOWED_ORIGINS", "*").strip()
+_allowed_origins = ["*"] if _origins_env == "*" else [
+    o.strip() for o in _origins_env.split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 app.add_middleware(TimingMiddleware)
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    """Per-IP throttle on the paid endpoint.
+
+    Returns 429 rather than a fallback: this tier exists to answer abuse, and a
+    silent degradation would hide it. Genuine users who exhaust the *global*
+    budget still get a working answer — see the daily budget in the /explain
+    router.
+    """
+    if request.url.path == "/explain" and request.method == "POST":
+        if not explain_ip_limiter.allow(client_key(request)):
+            logger.warning("rate limit hit for %s", client_key(request))
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "status": "error",
+                    "message": "Too many requests. Try again shortly.",
+                    "code": "RATE_LIMITED",
+                },
+            )
+    return await call_next(request)
 
 # ---------------------------------------------------------------------------
 # Exception handlers
@@ -208,7 +240,7 @@ async def session_funnel(session_id: str) -> dict:
 
 @app.get("/analytics/ai-health")
 async def ai_health() -> dict:
-    return health_tracker.summary()
+    return {**health_tracker.summary(), "daily_ai_budget": explain_budget.state()}
 
 
 @app.get("/health")
@@ -226,6 +258,9 @@ class DecisionEvent(BaseModel):
     event_type: Literal["accepted", "rejected", "modified"]
     scenario_result: ScenarioResult
     timestamp: str  # ISO8601
+    # Optional so existing clients keep working; without it the decision is
+    # keyed by user_id and will not join the funnel of a specific session.
+    session_id: Optional[str] = None
 
 
 @app.post("/decision")
@@ -233,9 +268,18 @@ async def decision_endpoint(event: DecisionEvent) -> dict:
     """
     Log a user decision on a recommendation.
 
-    No DB in MVP — written as structured JSON to stdout for Phase 3 ingestion.
+    Writes to BOTH sinks deliberately:
+      * stdout, as a structured log line (cheap, drains to any log platform)
+      * the analytics store, so the decision is visible to /analytics/funnel
+
+    Previously this endpoint wrote to stdout only, while the funnel read from
+    the events store — so the single most valuable signal in the product, a
+    user accepting or rejecting a recommendation, could never appear in the
+    funnel it was supposed to complete.
     """
-    if event.event_type in ("accepted", "modified"):
+    accepted = event.event_type in ("accepted", "modified")
+
+    if accepted:
         log_event(
             "RECOMMENDATION_ACCEPTED",
             {
@@ -248,5 +292,21 @@ async def decision_endpoint(event: DecisionEvent) -> dict:
             "RECOMMENDATION_REJECTED",
             {"user_id": event.user_id},
         )
+
+    # Analytics must never take an endpoint down.
+    try:
+        insert_event(AnalyticsEvent(
+            event_name="scenario_accepted" if accepted else "scenario_rejected",
+            user_id=event.user_id,
+            session_id=event.session_id or event.user_id,
+            timestamp=event.timestamp,
+            properties={
+                "event_type": event.event_type,
+                "scenario_delta": event.scenario_result.delta_months,
+                "adherence": event.scenario_result.adherence_rate,
+            },
+        ))
+    except Exception:  # noqa: BLE001
+        logger.exception("failed to persist decision event")
 
     return {"status": "logged"}

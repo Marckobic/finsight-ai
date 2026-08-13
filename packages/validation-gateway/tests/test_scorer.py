@@ -59,9 +59,9 @@ def make_scenario(
 
 
 def make_output(
-    recommendation: str = "Increase monthly savings by $300 per month.",
+    recommendation: str = "A monthly change of $240 is projected.",
     explanation: str = "Based on these figures, this change accelerates your timeline.",
-    summary: str = "Saving $300/month reduces your timeline by 6 months.",
+    summary: str = "Saving $240/month reduces your timeline by 6 months.",
     confidence: str = "high",
     reasoning: str = "The adherence rate of 80% applied to the scenario is well-grounded.",
     key_assumptions: list[str] | None = None,
@@ -141,7 +141,7 @@ def test_fallback_triggered():
 
 
 def test_number_consistency():
-    """delta_months=5, summary has '3 months' → -15 consistency."""
+    """delta_months=5, summary has '3 months' → not an engine value → -15."""
     output = make_output(
         summary="This behavioral change saves you 3 months on your timeline.",
     )
@@ -155,8 +155,12 @@ def test_number_consistency():
     assert any("consistency" in r for r in score.reasons)
 
 
-def test_number_within_tolerance_not_penalized():
-    """delta_months=5, summary has '4 months' → |4-5|=1, within ±1, no deduction."""
+def test_near_miss_number_is_penalized():
+    """delta_months=5, summary says '4 months'.
+
+    The old rule allowed ±1, so an off-by-one month survived scoring. For a
+    runway figure an off-by-one is simply a wrong number: no tolerance.
+    """
     output = make_output(
         summary="This change saves you 4 months off your timeline goal.",
     )
@@ -166,7 +170,27 @@ def test_number_within_tolerance_not_penalized():
         scenario=make_scenario(delta_months=5),
         baseline=make_baseline(),
     )
+    assert score.consistency < 30
+
+
+def test_baseline_month_in_summary_is_not_penalized():
+    """summary naming baseline_months and scenario_months must score clean.
+
+    The old rule compared every number against delta_months alone, so the
+    model was penalised for correctly quoting the timeline it was asked to
+    explain — the better the answer, the likelier it was discarded.
+    """
+    output = make_output(
+        summary="At this rate the timeline shifts from 24 months to 18 months.",
+    )
+    score = score_ai_output(
+        validation=make_validation(valid=True),
+        ai_output=output,
+        scenario=make_scenario(baseline_months=24, scenario_months=18, delta_months=6),
+        baseline=make_baseline(),
+    )
     assert score.consistency == 30.0
+    assert score.status == "approved"
 
 
 # ---------------------------------------------------------------------------

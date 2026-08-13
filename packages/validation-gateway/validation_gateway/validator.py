@@ -21,7 +21,6 @@ CI gate (PRD Section 16):
 """
 
 import math
-import re
 
 from pydantic import ValidationError
 from shared_types.models import (
@@ -30,6 +29,8 @@ from shared_types.models import (
     ScenarioResult,
     ValidationResult,
 )
+from validation_gateway.language_guard import find_blocking
+from validation_gateway.numeric_guard import build_allowed, describe_all, find_unverified
 
 # ---------------------------------------------------------------------------
 # Fallback template (deterministic — no AI generated)
@@ -259,13 +260,23 @@ def validate_ai_output(
             validated_output=_fallback_output(),
         )
 
-    # --- Check 3: Numeric consistency (hallucination detection) ---
-    hallucination_errors = _check_hallucinated_month_values(
-        validated, baseline, scenario
-    )
+    # --- Check 3: Numeric fidelity (every number must trace to engine output) ---
+    numeric_errors = _check_numeric_fidelity(validated, baseline, scenario)
 
-    if hallucination_errors:
-        errors.extend(hallucination_errors)
+    if numeric_errors:
+        errors.extend(numeric_errors)
+        return ValidationResult(
+            valid=False,
+            errors=errors,
+            fallback_used=True,
+            validated_output=_fallback_output(),
+        )
+
+    # --- Check 4: Prohibited phrasing (regulatory) ---
+    language_errors = find_blocking(_ai_text(validated))
+
+    if language_errors:
+        errors.extend(language_errors)
         return ValidationResult(
             valid=False,
             errors=errors,
@@ -282,19 +293,31 @@ def validate_ai_output(
     )
 
 
-def _check_hallucinated_month_values(
+def _ai_text(output: AIExplanationOutput) -> str:
+    """Every model-authored field, concatenated. Checks apply to all of them —
+    a fabricated number is no less wrong for appearing in ``reasoning``."""
+    parts = [
+        output.recommendation,
+        output.explanation,
+        output.summary,
+        output.reasoning,
+        " ".join(output.key_assumptions or []),
+    ]
+    return " ".join(p for p in parts if p)
+
+
+def _check_numeric_fidelity(
     output: AIExplanationOutput,
     baseline: BaselineResult,
     scenario: ScenarioResult,
 ) -> list[str]:
     """
-    Detect hallucinated month values in AI text output.
+    Verify that every number in the AI text traces back to engine output.
 
-    Strategy: Extract all standalone integers from AI text. Flag any integer
-    that looks like a month count (> 2, < 500) but does not match engine outputs.
-
-    This is a heuristic first layer. Full hallucination detection is enforced
-    by the ≥50-case CI regression suite (PRD Section 16).
+    Whitelist semantics: the prompt authorises exactly five values, so anything
+    else — regardless of magnitude, formatting or unit — is unverified and
+    triggers the deterministic fallback. See numeric_guard for the rationale
+    and for why the previous [3, 500] range heuristic was unsound.
 
     Args:
         output: Validated AIExplanationOutput to check.
@@ -302,40 +325,15 @@ def _check_hallucinated_month_values(
         scenario: Truth layer scenario result.
 
     Returns:
-        List of error strings if hallucinated values detected. Empty list if clean.
+        List of error strings, one per unverified token. Empty list if clean.
     """
-    errors: list[str] = []
+    allowed = build_allowed(baseline, scenario)
+    findings = find_unverified(_ai_text(output), allowed)
+    return describe_all(findings, allowed)
 
-    # Collect all integers from AI text
-    text = f"{output.recommendation} {output.explanation}"
-    numbers_in_text = [int(n) for n in re.findall(r'\b(\d+)\b', text)]
 
-    # Build the set of valid numbers from engine outputs (truth layer)
-    valid_engine_values: set[int] = set()
-
-    if baseline.time_to_goal_months is not None:
-        valid_engine_values.add(baseline.time_to_goal_months)
-    if scenario.baseline_months is not None:
-        valid_engine_values.add(scenario.baseline_months)
-    if scenario.scenario_months is not None:
-        valid_engine_values.add(scenario.scenario_months)
-    if scenario.delta_months is not None:
-        valid_engine_values.add(abs(scenario.delta_months))
-
-    # Also allow small common numbers (days of week, round percentages, etc.)
-    # and large USD values — we only flag suspicious month-range integers
-    for num in numbers_in_text:
-        # Numbers in the "month count" range (3–500) that don't match engine truth
-        if 3 <= num <= 500 and num not in valid_engine_values:
-            # Additional heuristic: skip if preceded by '$' (dollar amount)
-            pattern = rf'\${num}\b|\b{num}%'
-            if not re.search(pattern, text):
-                errors.append(
-                    f"Potential hallucinated value: {num} months not found in engine "
-                    f"outputs (valid: {sorted(valid_engine_values)})"
-                )
-
-    return errors
+# Backwards-compatible alias — the old name is referenced in existing tests.
+_check_hallucinated_month_values = _check_numeric_fidelity
 
 
 # ---------------------------------------------------------------------------

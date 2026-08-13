@@ -68,7 +68,10 @@ export function track(
     }
 
     // 3. Backend (when running — fire-and-forget)
-    const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+    const BASE_URL =
+      process.env.EXPO_PUBLIC_API_URL?.trim() ||
+      (__DEV__ ? "http://localhost:8000" : "");
+    if (!BASE_URL) return; // analytics is best-effort; never throw from track()
     fetch(`${BASE_URL}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

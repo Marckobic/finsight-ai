@@ -27,6 +27,7 @@ Real LLM integration:
 
 import json
 import logging
+import os
 import re
 from typing import Any
 
@@ -65,19 +66,29 @@ YOUR ONLY JOB: explain what the numbers mean in plain language.
 
 STRICT RULES — violation causes your output to be rejected:
 1. You MUST NOT generate any number not present in the input JSON.
+   Every figure you write is checked against the engine output before
+   it reaches the user. An unverifiable number discards your whole answer.
 2. You MUST NOT use phrases like "you should", "I recommend",
    "consider", or "advisor". You are not a financial advisor.
 3. You MUST NOT express certainty. Use: "based on these figures",
    "at this rate", "if this change is maintained".
 4. Your explanation must be 2-3 sentences maximum.
 5. You MUST reference only: baseline_months, scenario_months,
-   delta_months, monthly_change_amount, adherence_rate from the input.
+   delta_months, monthly_change, adherence_rate from the input.
+6. You MUST write numbers as digits ("18 months", never "eighteen months")
+   and MUST NOT round or approximate them ("about a year" is rejected).
 
-OUTPUT FORMAT (JSON only — no prose outside JSON):
+OUTPUT FORMAT — return JSON only, no prose outside the JSON object:
 {
   "recommendation": "one-line action summary",
-  "explanation": "2-3 sentence explanation using only input numbers"
-}"""
+  "explanation": "2-3 sentence explanation using only input numbers",
+  "summary": "one sentence naming the timeline change, 20 characters or more",
+  "confidence": "high" | "medium" | "low",
+  "reasoning": "one sentence on why this projection follows from the figures",
+  "key_assumptions": ["short assumption", "short assumption"]
+}
+
+All six fields are required. Rules 1-3 apply to every one of them."""
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +126,20 @@ class MockLLMClient:
         if self.mode == "empty":
             return json.dumps({"recommendation": "", "explanation": ""})
 
+        # Quality fields the scorer measures. Kept free of numbers so the mock
+        # exercises the happy path rather than the numeric guard.
+        _quality = {
+            "confidence": "medium",
+            "reasoning": (
+                "The projection follows directly from the engine timeline and the "
+                "adherence rate supplied in the input."
+            ),
+            "key_assumptions": [
+                "the monthly change is sustained",
+                "income and fixed expenses stay level",
+            ],
+        }
+
         # Extract engine numbers from the formatted user message
         baseline = self._extract_int(user_message, "baseline_months")
         scenario = self._extract_int(user_message, "scenario_months")
@@ -133,6 +158,8 @@ class MockLLMClient:
                     f"Based on these figures, at this rate your goal could be "
                     f"reached in {fake} months if this change is maintained."
                 ),
+                "summary": "The projected timeline changes under this scenario.",
+                **_quality,
             })
 
         # mode == "valid" — use only numbers extracted from the input
@@ -149,14 +176,24 @@ class MockLLMClient:
                 f"If this change is maintained, progress toward your goal "
                 f"may accelerate."
             )
+            summary = (
+                f"At this rate the timeline shifts from {baseline} months "
+                f"to {scenario} months."
+            )
         else:
             explanation = (
                 f"Based on these figures, this change may affect your timeline. "
                 f"At this rate, the projected scenario is {scenario} months. "
                 f"If this change is maintained, your progress may remain steady."
             )
+            summary = f"At this rate the projected timeline is {scenario} months."
 
-        return json.dumps({"recommendation": rec, "explanation": explanation})
+        return json.dumps({
+            "recommendation": rec,
+            "explanation": explanation,
+            "summary": summary,
+            **_quality,
+        })
 
     # ------------------------------------------------------------------
     # Private helpers — parse numbers from the formatted user message
@@ -184,10 +221,59 @@ class MockLLMClient:
 
 
 # ---------------------------------------------------------------------------
-# Module-level client — # SWAP THIS when real API key is available
+# Client resolution
 # ---------------------------------------------------------------------------
+#
+# There is no swap point any more. The client is resolved lazily on first use:
+#
+#   OPENAI_API_KEY set  → real client (ai_layer.llm_client.OpenAIClient)
+#   otherwise           → MockLLMClient("valid")
+#
+# Resolution is lazy and never raises, so a missing or malformed key degrades
+# to deterministic explanations instead of taking the process down at import
+# time. FINSIGHT_FORCE_MOCK=1 pins the mock even when a key is present, which
+# is what CI and the eval suite use to stay free and offline.
 
-_llm_client = MockLLMClient(mode="valid")  # SWAP THIS
+_resolved_client: Any | None = None
+_client_resolved = False
+
+
+def get_llm_client() -> Any:
+    """Return the active LLM client. Never raises; falls back to the mock."""
+    global _resolved_client, _client_resolved
+    if _client_resolved:
+        return _resolved_client
+
+    _client_resolved = True
+
+    if os.environ.get("FINSIGHT_FORCE_MOCK", "").strip() in ("1", "true", "True"):
+        logger.info("FINSIGHT_FORCE_MOCK set — using MockLLMClient")
+        _resolved_client = MockLLMClient(mode="valid")
+        return _resolved_client
+
+    if not os.environ.get("OPENAI_API_KEY", "").strip():
+        logger.warning(
+            "OPENAI_API_KEY not set — /explain will serve deterministic mock output"
+        )
+        _resolved_client = MockLLMClient(mode="valid")
+        return _resolved_client
+
+    try:
+        from ai_layer.llm_client import OpenAIClient
+        _resolved_client = OpenAIClient()
+        logger.info("LLM client active: %s", _resolved_client.model)
+    except Exception as exc:  # noqa: BLE001 — must not break process startup
+        logger.error("failed to construct LLM client (%s) — falling back to mock", exc)
+        _resolved_client = MockLLMClient(mode="valid")
+
+    return _resolved_client
+
+
+def reset_llm_client() -> None:
+    """Clear the cached client. Tests use this after changing the environment."""
+    global _resolved_client, _client_resolved
+    _resolved_client = None
+    _client_resolved = False
 
 
 # ---------------------------------------------------------------------------
@@ -260,27 +346,49 @@ def call_llm(
         system_prompt: Immutable system instruction string.
         user_message:  User turn populated from AIExplanationInput.
         client:        LLM client with .call(system, user) → str interface.
-                       Defaults to the module-level _llm_client (# SWAP THIS).
+                       Defaults to the lazily resolved client.
 
     Returns:
         Parsed dict from the LLM response.
 
     Raises:
-        AILayerError: On JSON parse failure or LLM transport error (timeout, etc.).
+        AILayerError: On JSON parse failure or ANY transport error.
+
+    Every transport exception is funnelled into AILayerError. Catching only
+    TimeoutError here used to leak provider exceptions (APIConnectionError,
+    RateLimitError, AuthenticationError) past generate_explanation and out of
+    the endpoint as a 500 — which is exactly what the "/explain never returns
+    5xx" guarantee promises cannot happen.
     """
-    _client = client if client is not None else _llm_client  # SWAP THIS
+    _client = client if client is not None else get_llm_client()
 
     try:
         raw_str = _client.call(system_prompt, user_message)
-    except TimeoutError as exc:
-        raise AILayerError(f"LLM request timed out: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001 — deliberate funnel, see docstring
+        name = type(exc).__name__
+        if isinstance(exc, TimeoutError) or "Timeout" in name:
+            raise AILayerError(f"LLM request timed out: {exc}") from exc
+        raise AILayerError(f"LLM transport error: {name}: {exc}") from exc
+
+    # Real clients may return a rich result object rather than a bare string.
+    raw_str = getattr(raw_str, "text", raw_str)
+
+    if not isinstance(raw_str, str):
+        raise AILayerError(f"LLM returned {type(raw_str).__name__}, expected str")
 
     try:
-        return json.loads(raw_str)
+        parsed = json.loads(raw_str)
     except json.JSONDecodeError as exc:
         raise AILayerError(
             f"LLM returned non-JSON response: {raw_str[:120]!r}"
         ) from exc
+
+    if not isinstance(parsed, dict):
+        raise AILayerError(
+            f"LLM returned JSON {type(parsed).__name__}, expected an object"
+        )
+
+    return parsed
 
 
 # ---------------------------------------------------------------------------
@@ -330,26 +438,14 @@ def generate_explanation(
     # Step 3 + 4: Validate through the hard safety gate
     # Construct proxy objects so the validation gateway can check numeric
     # consistency against the source-of-truth engine values.
-    proxy_baseline = BaselineResult(
-        monthly_cashflow=0.0,
-        savings_rate=0.0,
-        time_to_goal_months=input.baseline_months,
-        monthly_savings_gap=0.0,
-        goal_already_met=False,
-    )
-    proxy_scenario = ScenarioResult(
-        baseline_months=input.baseline_months,
-        scenario_months=input.scenario_months,
-        delta_months=input.delta_months,
-        adherence_rate=max(0.1, min(0.95, input.adherence_rate)),
-        effective_monthly_change=max(0.0, input.monthly_change_amount),
-        scenario_monthly_cashflow=0.0,
-        is_improvement=(
-            input.delta_months is not None and input.delta_months > 0
-        ),
-    )
+    proxy_baseline = build_proxy_baseline(input)
+    proxy_scenario = build_proxy_scenario(input)
 
-    result = validate_ai_output(raw, proxy_baseline, proxy_scenario)
+    try:
+        result = validate_ai_output(raw, proxy_baseline, proxy_scenario)
+    except Exception as exc:  # noqa: BLE001 — the gate must not be able to crash /explain
+        logger.exception("validate_ai_output raised unexpectedly")
+        return _fallback_result(f"validation gateway error: {exc}")
 
     if not result.valid:
         logger.error(
@@ -363,6 +459,39 @@ def generate_explanation(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def build_proxy_scenario(input: AIExplanationInput) -> ScenarioResult:
+    """Rebuild the engine-truth view the gate and the scorer both check against.
+
+    Single source of truth for this projection: it used to be duplicated in
+    explain.py and in the /explain router, and both copies clamped adherence
+    into [0.1, 0.95]. That made the gate verify a number the user was never
+    shown — a request with adherence 0.05 renders "5%" but was checked against
+    10%. No clamping here: the checks compare against what actually happened.
+    """
+    return ScenarioResult(
+        baseline_months=input.baseline_months,
+        scenario_months=input.scenario_months,
+        delta_months=input.delta_months,
+        adherence_rate=input.adherence_rate,
+        effective_monthly_change=input.monthly_change_amount,
+        scenario_monthly_cashflow=0.0,
+        is_improvement=(
+            input.delta_months is not None and input.delta_months > 0
+        ),
+    )
+
+
+def build_proxy_baseline(input: AIExplanationInput) -> BaselineResult:
+    """Engine-truth baseline view used by the gate and the scorer."""
+    return BaselineResult(
+        monthly_cashflow=0.0,
+        savings_rate=0.0,
+        time_to_goal_months=input.baseline_months,
+        monthly_savings_gap=0.0,
+        goal_already_met=False,
+    )
 
 
 def _fallback_result(reason: str) -> ValidationResult:

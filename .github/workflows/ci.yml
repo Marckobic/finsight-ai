@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      # The eval suite must never spend money or touch the network in CI.
+      FINSIGHT_FORCE_MOCK: "1"
+      # Keep the analytics store out of /tmp semantics during tests.
+      FINSIGHT_DB_PATH: ${{ github.workspace }}/.data/ci_events.db
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint
+        run: ruff check packages/ tests/ evals/ apps/
+
+      - name: Types
+        run: mypy packages/ --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Unit tests
+        run: pytest tests/ packages/ --tb=short -q
+
+      - name: AI evaluation gate
+        run: python evals/run.py --mock
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: evals/report.json

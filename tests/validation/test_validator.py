@@ -843,29 +843,120 @@ class TestValidateAIOutputCheck3Hallucination:
         assert result.valid is False
         assert len(result.errors) >= 2
 
-    def test_dollar_amount_is_allowed(self):
-        """'$300' must NOT be flagged — dollar amounts are explicitly excluded."""
+    def test_dollar_amount_matching_engine_is_allowed(self):
+        """'$240' matches effective_monthly_change → verified, not flagged."""
         baseline, scenario = self._make_engine_pair(24, 18, 6)
         raw = {
-            "recommendation": "Increase your monthly savings by $300.",
-            "explanation": "Saving an extra $300 per month will accelerate your goal.",
+            "recommendation": "A monthly change of $240 is projected.",
+            "explanation": "At this rate, an extra $240 per month shifts the timeline.",
         }
         result = validate_ai_output(raw, baseline, scenario)
 
         assert result.valid is True
         assert result.fallback_used is False
 
-    def test_percentage_is_allowed(self):
-        """'70%' must NOT be flagged — percentages are explicitly excluded."""
+    def test_fabricated_dollar_amount_is_flagged(self):
+        """'$900' is not the engine's monthly change → must not pass unchecked.
+
+        Regression: the previous range heuristic exempted every '$'-prefixed
+        number, so an invented recommendation amount reached the UI unverified.
+        """
+        baseline, scenario = self._make_engine_pair(24, 18, 6)
+        raw = {
+            "recommendation": "Cut $900 of spending each month.",
+            "explanation": "At this rate the timeline shifts from 24 to 18 months.",
+        }
+        result = validate_ai_output(raw, baseline, scenario)
+
+        assert result.valid is False
+        assert result.fallback_used is True
+        assert any("900" in e for e in result.errors)
+
+    def test_percentage_matching_adherence_is_allowed(self):
+        """'80%' matches adherence_rate=0.8 → verified."""
+        baseline, scenario = self._make_engine_pair(24, 18, 6)
+        raw = {
+            "recommendation": "At 80% adherence this change is projected.",
+            "explanation": "Based on these figures, 80% adherence shifts the timeline.",
+        }
+        result = validate_ai_output(raw, baseline, scenario)
+
+        assert result.valid is True
+        assert result.fallback_used is False
+
+    def test_fabricated_percentage_is_flagged(self):
+        """'70%' does not match adherence_rate=0.8 → flagged.
+
+        Regression: '%'-suffixed numbers used to bypass the check entirely.
+        """
         baseline, scenario = self._make_engine_pair(24, 18, 6)
         raw = {
             "recommendation": "Commit to 70% of this plan.",
-            "explanation": "Following 70% of the plan consistently is the key.",
+            "explanation": "Following 70% of the plan consistently is the pattern.",
+        }
+        result = validate_ai_output(raw, baseline, scenario)
+
+        assert result.valid is False
+        assert any("70" in e for e in result.errors)
+
+    def test_low_month_count_is_flagged(self):
+        """'2 months' below the old range floor → previously passed, now flagged.
+
+        Regression: an understated runway is the most damaging fabrication the
+        product can emit, and it sat exactly in the heuristic's blind spot.
+        """
+        baseline, scenario = self._make_engine_pair(24, 18, 6)
+        raw = {
+            "recommendation": "Adjust savings.",
+            "explanation": "Based on these figures, your runway is 2 months at this rate.",
+        }
+        result = validate_ai_output(raw, baseline, scenario)
+
+        assert result.valid is False
+        assert any("2 months" in e for e in result.errors)
+
+    def test_month_count_written_as_a_word_is_flagged(self):
+        """'eighteen months' — digit-only extraction used to miss this entirely."""
+        baseline, scenario = self._make_engine_pair(24, 12, 12)
+        raw = {
+            "recommendation": "Adjust savings.",
+            "explanation": "Based on these figures, the goal is about eighteen months out.",
+        }
+        result = validate_ai_output(raw, baseline, scenario)
+
+        assert result.valid is False
+
+    def test_thousands_separator_is_not_split(self):
+        """'$1,200' must be read as 1200, not as a bare 200.
+
+        Regression: the old \\b(\\d+)\\b extraction split on the comma and
+        reported a hallucinated '200 months'.
+        """
+        baseline, scenario = self._make_engine_pair(24, 18, 6)
+        scenario = make_scenario(
+            baseline_months=24,
+            scenario_months=18,
+            delta_months=6,
+            effective_monthly_change=1200.0,
+        )
+        raw = {
+            "recommendation": "A monthly change of $1,200 is projected.",
+            "explanation": "At this rate the timeline shifts from 24 to 18 months.",
         }
         result = validate_ai_output(raw, baseline, scenario)
 
         assert result.valid is True
-        assert result.fallback_used is False
+
+    def test_vague_timeframe_is_flagged(self):
+        """'about a year' cannot be traced to any engine value."""
+        baseline, scenario = self._make_engine_pair(24, 18, 6)
+        raw = {
+            "recommendation": "Adjust savings.",
+            "explanation": "Based on these figures, the goal is about a year away.",
+        }
+        result = validate_ai_output(raw, baseline, scenario)
+
+        assert result.valid is False
 
     def test_engine_month_values_allowed(self):
         """AI references exact engine month values (18, 24, 6) → no hallucination."""
@@ -912,8 +1003,9 @@ class TestValidateAIOutputCheck3Hallucination:
 
         assert result.valid is False  # 500 not in {24, 18, 6}
 
-    def test_value_just_above_range_not_flagged(self):
-        """501 is above the suspicious range — not flagged."""
+    def test_large_number_is_flagged(self):
+        """501 sat above the old range ceiling and passed. Magnitude is irrelevant
+        under whitelist semantics — it is not an engine value, so it is flagged."""
         baseline, scenario = self._make_engine_pair(24, 18, 6)
         raw = {
             "recommendation": "Save.",
@@ -921,22 +1013,21 @@ class TestValidateAIOutputCheck3Hallucination:
         }
         result = validate_ai_output(raw, baseline, scenario)
 
-        # 501 > 500, outside suspicious range → not flagged
-        assert result.valid is True
+        assert result.valid is False
 
-    def test_dollar_amount_500_not_flagged(self):
-        """$500 — even though 500 is at the boundary, dollar prefix exempts it."""
+    def test_dollar_amount_500_is_flagged(self):
+        """$500 does not match effective_monthly_change=240 → flagged."""
         baseline, scenario = self._make_engine_pair(24, 18, 6)
         raw = {
             "recommendation": "Save $500 per month.",
-            "explanation": "An extra $500 monthly contribution will help greatly.",
+            "explanation": "An extra $500 monthly contribution changes the timeline.",
         }
         result = validate_ai_output(raw, baseline, scenario)
 
-        assert result.valid is True
+        assert result.valid is False
 
-    def test_percentage_boundary_not_flagged(self):
-        """300% is in range but has % suffix — exempted."""
+    def test_percentage_boundary_is_flagged(self):
+        """300% is not the adherence rate → flagged."""
         baseline, scenario = self._make_engine_pair(24, 18, 6)
         raw = {
             "recommendation": "Save.",
@@ -944,7 +1035,7 @@ class TestValidateAIOutputCheck3Hallucination:
         }
         result = validate_ai_output(raw, baseline, scenario)
 
-        assert result.valid is True
+        assert result.valid is False
 
     def test_no_numbers_in_text_passes(self):
         """AI text with no numbers at all → trivially passes hallucination check."""

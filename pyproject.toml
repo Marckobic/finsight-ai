@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "packages"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -23,6 +23,7 @@ omit = [
     "tests/*",
     "apps/*",
     "infra/*",
+    "evals/*",
     "verify_engine.py",
 ]
 

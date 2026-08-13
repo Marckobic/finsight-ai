@@ -19,14 +19,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-logger = logging.getLogger(__name__)
+from shared_types.sla import SLA_MS as _SLA_MS
 
-# SLA thresholds in milliseconds
-_SLA_MS: dict[str, int] = {
-    "/baseline": 300,
-    "/scenario": 1500,
-    "/explain": 3000,
-}
+logger = logging.getLogger(__name__)
 
 
 class TimingMiddleware(BaseHTTPMiddleware):

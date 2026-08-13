@@ -19,8 +19,27 @@ import type {
   ScenarioResponse,
 } from "./types";
 
-const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * EXPO_PUBLIC_* values are inlined at BUILD time, not read at runtime.
+ * Changing .env is therefore not enough for a deployed app: set
+ * EXPO_PUBLIC_API_URL in the Vercel project settings and redeploy.
+ *
+ * There is no localhost fallback in production builds. A forgotten variable
+ * used to produce an app that silently pointed at the developer's machine —
+ * every user got a network error at the most expensive step, right after
+ * entering their finances. Failing loudly at startup is cheaper.
+ */
+const BASE_URL = resolveBaseUrl();
+
+function resolveBaseUrl(): string {
+  const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  if (__DEV__) return "http://localhost:8000";
+  throw new Error(
+    "EXPO_PUBLIC_API_URL is not set. Set it in the Vercel project settings " +
+      "and redeploy — the value is baked in at build time."
+  );
+}
 
 const TIMEOUT_MS = 10_000;
 

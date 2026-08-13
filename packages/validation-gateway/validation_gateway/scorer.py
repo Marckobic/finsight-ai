@@ -4,9 +4,23 @@ Quality scoring layer — sits AFTER validate_ai_output(), before the UI.
 
 Scores are advisory: the UI renders with a quality badge.
 status="fallback" forces the deterministic fallback template to be used.
+
+CALIBRATION
+-----------
+Every dimension here must correspond to something the system prompt actually
+asks the model to produce. When it does not, the scorer measures the prompt's
+omissions rather than the model's quality: before the prompt was extended to
+six fields, key_assumptions and reasoning were always empty, every response
+lost 30 points, and no answer could ever be "approved". A scorer that cannot
+return its own top grade is not scoring anything.
+
+The consistency dimension delegates to numeric_guard, so scorer and validator
+apply one definition of "this number came from the engine". It previously
+compared against delta_months alone, which penalised the model for correctly
+naming baseline_months — the better the answer followed the prompt, the more
+likely it was to be discarded.
 """
 
-import re
 from typing import Literal
 
 from pydantic import BaseModel
@@ -17,6 +31,8 @@ from shared_types.models import (
     ScenarioResult,
     ValidationResult,
 )
+from validation_gateway.language_guard import find_advisory
+from validation_gateway.numeric_guard import build_allowed, find_unverified
 
 
 class AIQualityScore(BaseModel):
@@ -33,7 +49,7 @@ def score_ai_output(
     validation: ValidationResult,
     ai_output: AIExplanationOutput,
     scenario: ScenarioResult,
-    baseline: BaselineResult,  # noqa: ARG001 — reserved for future grounding checks
+    baseline: BaselineResult,
 ) -> AIQualityScore:
     """
     Score AI output quality across four dimensions.
@@ -42,11 +58,10 @@ def score_ai_output(
     """
     reasons: list[str] = []
 
-    # Resolve optional quality fields, falling back to primary fields
     confidence = ai_output.confidence
     key_assumptions = ai_output.key_assumptions
     summary = ai_output.summary if ai_output.summary else ai_output.recommendation
-    reasoning = ai_output.reasoning  # use quality field directly; empty triggers deduction
+    reasoning = ai_output.reasoning
 
     # ── grounding (0–40) ────────────────────────────────────────────────────
     grounding = 40.0
@@ -70,18 +85,18 @@ def score_ai_output(
         consistency -= 15
         reasons.append("validation failed (-15 consistency)")
 
-    if scenario.delta_months is not None:
-        month_nums = [int(n) for n in re.findall(r"\b(\d+)\b", summary)]
-        for num in month_nums:
-            if 3 <= num <= 500 and abs(num - scenario.delta_months) > 1:
-                # Exclude dollar amounts and percentages (same heuristic as hallucination check)
-                if not re.search(rf"\${num}\b|\b{num}%", summary):
-                    consistency -= 15
-                    reasons.append(
-                        f"summary contains {num} but delta_months={scenario.delta_months} "
-                        f"(expected ±1) (-15 consistency)"
-                    )
-                    break
+    allowed = build_allowed(baseline, scenario)
+    unverified = find_unverified(summary, allowed)
+    if unverified:
+        consistency -= 15
+        first = unverified[0]
+        reasons.append(
+            f"summary contains {first.text!r}, which is not an engine value "
+            f"(months={sorted(allowed.months)}, money={list(allowed.money)}, "
+            f"percent={list(allowed.percent)}) (-15 consistency)"
+        )
+
+    consistency = max(consistency, 0.0)
 
     # ── completeness (0–20) ─────────────────────────────────────────────────
     completeness = 20.0
@@ -104,6 +119,15 @@ def score_ai_output(
     if not scenario.is_improvement and confidence == "high":
         behavioral_fit -= 5
         reasons.append("high confidence despite no improvement (-5 behavioral_fit)")
+
+    # Soft directive phrasing. The blocking tier lives in the validator; this
+    # tier is scored so that style drift is visible without inflating fallbacks.
+    advisory = find_advisory(f"{ai_output.recommendation} {ai_output.explanation}")
+    if advisory and behavioral_fit > 0:
+        behavioral_fit -= 5
+        reasons.append(f"{advisory[0]} (-5 behavioral_fit)")
+
+    behavioral_fit = max(behavioral_fit, 0.0)
 
     # ── total + status ───────────────────────────────────────────────────────
     total = grounding + consistency + completeness + behavioral_fit
