@@ -1,4 +1,9 @@
 [tool.pytest.ini_options]
+# NOTE: test directories nested under packages/ must NOT contain __init__.py.
+# With one, pytest imports the module as "tests.test_scorer", which collides
+# with the root-level "tests" package already in sys.modules and fails
+# collection with ModuleNotFoundError. packages/analytics/tests/ has no
+# __init__.py, which is why it collected fine and validation-gateway did not.
 testpaths = ["tests", "packages"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
