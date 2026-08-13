@@ -70,19 +70,32 @@ class OpenAIClient:
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = 0.0,
         max_attempts: int = 2,
+        transport=None,
+        openai_module=None,
     ) -> None:
+        """
+        transport / openai_module are injection points for tests.
+
+        They exist so the retry, deadline and truncation logic — the part worth
+        testing — can be exercised without the openai package, a key, or a
+        network. Production never passes them.
+        """
         api_key = (api_key or os.environ.get("OPENAI_API_KEY", "")).strip()
-        if not api_key:
+        if not api_key and transport is None:
             raise LLMUnavailable("OPENAI_API_KEY is not set")
 
-        try:
-            import openai
-        except ImportError as exc:  # pragma: no cover — depends on deployment image
-            raise LLMUnavailable(f"openai package not installed: {exc}") from exc
+        if transport is not None:
+            self._openai = openai_module
+            self._client = transport
+        else:
+            try:
+                import openai
+            except ImportError as exc:  # pragma: no cover — depends on deployment image
+                raise LLMUnavailable(f"openai package not installed: {exc}") from exc
 
-        self._openai = openai
-        # max_retries=0: retry policy lives here, where the deadline is known.
-        self._client = openai.OpenAI(api_key=api_key, max_retries=0)
+            self._openai = openai
+            # max_retries=0: retry policy lives here, where the deadline is known.
+            self._client = openai.OpenAI(api_key=api_key, max_retries=0)
         self.model = model or os.environ.get("FINSIGHT_LLM_MODEL", DEFAULT_MODEL)
         self.deadline_ms = deadline_ms or int(
             os.environ.get("FINSIGHT_LLM_DEADLINE_MS", llm_deadline_ms())
@@ -96,6 +109,8 @@ class OpenAIClient:
 
     def _is_transient(self, exc: Exception) -> bool:
         openai = self._openai
+        if openai is None:
+            return False
         candidates = (
             getattr(openai, "APITimeoutError", None),
             getattr(openai, "APIConnectionError", None),

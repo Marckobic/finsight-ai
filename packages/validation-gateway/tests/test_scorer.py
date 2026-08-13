@@ -315,3 +315,54 @@ def test_score_model_fields_present():
     assert hasattr(score, "status")
     assert hasattr(score, "reasons")
     assert score.status in ("approved", "degraded", "fallback")
+
+
+# ---------------------------------------------------------------------------
+# Soft directive phrasing and floors
+# ---------------------------------------------------------------------------
+
+
+def test_soft_directive_deducts_behavioral_fit():
+    """Scored, not blocked: the blocking tier lives in the validator."""
+    score = score_ai_output(
+        validation=make_validation(valid=True),
+        ai_output=make_output(recommendation="Consider keeping the change in place."),
+        scenario=make_scenario(),
+        baseline=make_baseline(),
+    )
+    assert score.behavioral_fit < 10.0
+    assert any("directive" in r for r in score.reasons)
+
+
+def test_dimensions_never_go_negative():
+    """Stacked penalties must floor at zero, not produce a negative total."""
+    score = score_ai_output(
+        validation=make_validation(valid=False),
+        ai_output=make_output(
+            recommendation="Consider this.",
+            summary="This saves 3 months and $999 monthly.",
+            confidence="high",
+            key_assumptions=[],
+            reasoning="",
+        ),
+        scenario=make_scenario(adherence_rate=0.2, is_improvement=False, delta_months=0),
+        baseline=make_baseline(),
+    )
+    assert score.consistency >= 0.0
+    assert score.behavioral_fit >= 0.0
+    assert score.total >= 0.0
+    assert score.status == "fallback"
+
+
+def test_summary_falls_back_to_recommendation_when_absent():
+    """Older clients may omit summary; scoring must still have something to read."""
+    score = score_ai_output(
+        validation=make_validation(valid=True),
+        ai_output=make_output(
+            summary="",
+            recommendation="At this rate the timeline shifts from 24 to 18 months.",
+        ),
+        scenario=make_scenario(),
+        baseline=make_baseline(),
+    )
+    assert score.grounding == 40.0
