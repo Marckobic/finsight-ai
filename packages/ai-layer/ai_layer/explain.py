@@ -251,9 +251,13 @@ def get_llm_client() -> Any:
         _resolved_client = MockLLMClient(mode="valid")
         return _resolved_client
 
-    if not os.environ.get("OPENAI_API_KEY", "").strip():
+    has_key = bool(
+        os.environ.get("FINSIGHT_LLM_API_KEY", "").strip()
+        or os.environ.get("OPENAI_API_KEY", "").strip()
+    )
+    if not has_key:
         logger.warning(
-            "OPENAI_API_KEY not set — /explain will serve deterministic mock output"
+            "no LLM API key set — /explain will serve deterministic mock output"
         )
         _resolved_client = MockLLMClient(mode="valid")
         return _resolved_client
@@ -261,7 +265,10 @@ def get_llm_client() -> Any:
     try:
         from ai_layer.llm_client import OpenAIClient
         _resolved_client = OpenAIClient()
-        logger.info("LLM client active: %s", _resolved_client.model)
+        logger.info(
+            "LLM client active: model=%s base_url=%s",
+            _resolved_client.model, _resolved_client.base_url or "openai default",
+        )
     except Exception as exc:  # noqa: BLE001 — must not break process startup
         logger.error("failed to construct LLM client (%s) — falling back to mock", exc)
         _resolved_client = MockLLMClient(mode="valid")

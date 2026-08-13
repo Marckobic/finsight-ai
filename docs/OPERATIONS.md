@@ -8,14 +8,46 @@ it never takes the service down.**
 
 | Variable | Default | Effect when unset |
 |---|---|---|
-| `OPENAI_API_KEY` | — | AI layer serves deterministic mock output. `/explain` keeps returning 200. |
+| `FINSIGHT_LLM_API_KEY` / `OPENAI_API_KEY` | — | AI layer serves deterministic mock output. `/explain` keeps returning 200. |
+| `FINSIGHT_LLM_BASE_URL` | OpenAI | Point at any OpenAI-compatible provider (see below). |
 | `FINSIGHT_FORCE_MOCK` | unset | Set to `1` to pin the mock even with a key present. CI and the eval suite use this to stay free and offline. |
-| `FINSIGHT_LLM_MODEL` | `gpt-4o-mini` | — |
+| `FINSIGHT_LLM_MODEL` | `gpt-4o-mini` | **Required** when `FINSIGHT_LLM_BASE_URL` is set. |
 | `FINSIGHT_LLM_DEADLINE_MS` | 80 % of the `/explain` SLA (2400 ms) | — |
 | `FINSIGHT_DB_PATH` | `./.data/finsight_events.db` | **Set this to a mounted volume in production.** See below. |
 | `FINSIGHT_ALLOWED_ORIGINS` | `*` | Comma-separated origin list to lock CORS down without a code change. |
 | `FINSIGHT_EXPLAIN_IP_HOURLY` | 20 | Per-IP `/explain` calls per hour before 429. |
 | `FINSIGHT_EXPLAIN_DAILY_BUDGET` | 2000 | Global paid calls per day. Past the cap the endpoint serves the deterministic template — the product degrades, the bill does not. |
+
+### Using a provider other than OpenAI
+
+`ai_layer` knows only `.call(system, user)`, so any OpenAI-compatible endpoint
+works without touching the pipeline — Groq, Cerebras, OpenRouter, Together, a
+local Ollama. Two variables:
+
+```
+FINSIGHT_LLM_BASE_URL=https://api.groq.com/openai/v1
+FINSIGHT_LLM_API_KEY=gsk_...
+FINSIGHT_LLM_MODEL=llama-3.3-70b-versatile
+```
+
+The model name is **required** with a custom base URL and the client refuses to
+start without it. Defaulting to `gpt-4o-mini` against a provider that has never
+heard of it would 404 every request, and the transport would faithfully turn
+each 404 into a deterministic fallback — a product quietly serving templates,
+with nothing in the response to say why.
+
+Two things to keep in mind when switching provider:
+
+* **JSON mode.** The client sends `response_format={"type": "json_object"}` and
+  refuses to call when the prompt lacks the word "json". Both OpenAI and Groq
+  require the instruction to be in the prompt, and the system prompt satisfies
+  it — `test_the_system_prompt_satisfies_json_mode` pins that.
+* **Rate limits.** Free tiers are tight (Groq: 30 requests/minute at the time of
+  writing). A 429 arrives as `openai.RateLimitError`, which the client treats as
+  transient: one retry inside the deadline, then the deterministic fallback. The
+  product degrades, it does not break — but set `FINSIGHT_EXPLAIN_DAILY_BUDGET`
+  below the provider's daily cap so your own limiter trips first and the reason
+  shows up in the logs.
 
 ### The analytics volume
 
@@ -48,28 +80,12 @@ allowance is visible without reading logs.
 | `EXPO_PUBLIC_API_URL` | **Required in production.** |
 | `EXPO_PUBLIC_POSTHOG_KEY` | Optional; activates PostHog in `lib/analytics.ts`. |
 
-`EXPO_PUBLIC_*` values are inlined at **build** time — and in this project the
-build runs on your machine, not on Vercel:
-
-```
-cd apps/mobile
-npx expo export --platform web --clear   # <- .env is read HERE
-vercel --prod                            # <- uploads the finished dist/
-```
-
-`vercel.json` sets `outputDirectory: dist` and `package.json` has no build
-script, so Vercel serves a pre-built bundle and never runs a build. **A variable
-set in the Vercel dashboard has no effect.** The value that ships is whatever
-`apps/mobile/.env` contained when `expo export` ran.
-
-There is no localhost fallback in production builds. A missing value surfaces as
-a `CONFIG_ERROR` in the app's error card rather than shipping a bundle that
-points at a developer's laptop — which is what made every deployed request fail
-at the most expensive step, immediately after the user entered their finances.
-
-`apps/mobile/app.json` also carries `extra.apiUrl`. Nothing reads it; the app
-uses `process.env.EXPO_PUBLIC_API_URL` only. Keep the two in sync or drop the
-`extra.apiUrl` field, otherwise it reads like configuration that works.
+`EXPO_PUBLIC_*` values are inlined at **build** time. Editing `apps/mobile/.env`
+does not change a deployed app: set the variable in the Vercel project settings
+and redeploy. There is no longer a localhost fallback in production builds — a
+missing value throws at startup rather than shipping an app that points at a
+developer's laptop, which is what made every deployed request fail at the most
+expensive step, immediately after the user entered their finances.
 
 ## Health and metrics
 

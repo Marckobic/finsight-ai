@@ -64,15 +64,19 @@ class _Transient(Exception):
 # ---------------------------------------------------------------------------
 
 
-def test_missing_key_raises_llm_unavailable_not_key_error():
+def test_missing_key_raises_llm_unavailable_not_key_error(monkeypatch):
     """Never a bare KeyError: that is what took the FastAPI app down on import."""
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("FINSIGHT_LLM_API_KEY", "")
     with pytest.raises(LLMUnavailable, match="OPENAI_API_KEY"):
         OpenAIClient(api_key="")
 
 
-def test_defaults_come_from_the_shared_sla():
+def test_defaults_come_from_the_shared_sla(monkeypatch):
     from shared_types.sla import SLA_MS
 
+    monkeypatch.setenv("FINSIGHT_LLM_BASE_URL", "")
+    monkeypatch.setenv("FINSIGHT_LLM_MODEL", "")
     client = _client()
     assert client.model == DEFAULT_MODEL
     assert client.deadline_ms < SLA_MS["/explain"]
@@ -220,3 +224,54 @@ def test_explain_layer_accepts_an_llm_result_object():
     ))
     parsed = call_llm(system, user, client=_Wrapper())
     assert parsed["recommendation"].startswith("A monthly change")
+
+
+# ---------------------------------------------------------------------------
+# OpenAI-compatible providers (Groq, Cerebras, OpenRouter, local Ollama)
+# ---------------------------------------------------------------------------
+
+
+def test_base_url_and_model_come_from_the_environment(monkeypatch):
+    monkeypatch.setenv("FINSIGHT_LLM_BASE_URL", "https://api.groq.com/openai/v1")
+    monkeypatch.setenv("FINSIGHT_LLM_MODEL", "llama-3.3-70b-versatile")
+
+    client = _client(_Response('{"ok": 1}'))
+
+    assert client.base_url == "https://api.groq.com/openai/v1"
+    assert client.model == "llama-3.3-70b-versatile"
+
+
+def test_custom_base_url_without_a_model_is_refused(monkeypatch):
+    """Defaulting to gpt-4o-mini on Groq would 404 every request, and the
+    transport would dutifully turn each 404 into a fallback — a product serving
+    templates for no visible reason. Fail at construction instead."""
+    monkeypatch.setenv("FINSIGHT_LLM_BASE_URL", "https://api.groq.com/openai/v1")
+    monkeypatch.setenv("FINSIGHT_LLM_MODEL", "")
+
+    with pytest.raises(LLMUnavailable, match="FINSIGHT_LLM_MODEL"):
+        OpenAIClient(api_key="sk-test")
+
+
+def test_provider_agnostic_key_variable(monkeypatch):
+    monkeypatch.setenv("FINSIGHT_LLM_API_KEY", "gsk-test")
+    monkeypatch.setenv("FINSIGHT_LLM_MODEL", "llama-3.3-70b-versatile")
+    monkeypatch.setenv("FINSIGHT_LLM_BASE_URL", "https://api.groq.com/openai/v1")
+
+    client = OpenAIClient(transport=_Transport(_Response('{"ok": 1}')))
+    assert client.model == "llama-3.3-70b-versatile"
+
+
+def test_no_base_url_keeps_the_openai_default(monkeypatch):
+    monkeypatch.setenv("FINSIGHT_LLM_BASE_URL", "")
+    monkeypatch.setenv("FINSIGHT_LLM_MODEL", "")
+
+    client = _client(_Response('{"ok": 1}'))
+    assert client.base_url is None
+    assert client.model == DEFAULT_MODEL
+
+
+def test_the_system_prompt_satisfies_json_mode():
+    """Both OpenAI and Groq want JSON explicitly requested in the prompt."""
+    from ai_layer.explain import _SYSTEM_PROMPT
+
+    assert "json" in _SYSTEM_PROMPT.lower()

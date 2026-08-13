@@ -37,6 +37,17 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "gpt-4o-mini"
 DEFAULT_MAX_TOKENS = 400
 
+# Any OpenAI-compatible endpoint works: Groq, Cerebras, OpenRouter, Together,
+# a local Ollama. Set FINSIGHT_LLM_BASE_URL and FINSIGHT_LLM_MODEL; the rest of
+# the system is unaffected, because ai_layer only knows .call(system, user).
+#
+#   Groq:  https://api.groq.com/openai/v1
+#
+# When a custom base URL is set the model must be named explicitly. Defaulting
+# to gpt-4o-mini against a provider that has never heard of it would produce a
+# 404 per request, which the transport would faithfully turn into a fallback —
+# a working product serving templates, and no obvious reason why.
+
 
 class LLMUnavailable(RuntimeError):
     """No usable completion. The caller must serve the deterministic template."""
@@ -65,6 +76,7 @@ class OpenAIClient:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
+        base_url: Optional[str] = None,
         deadline_ms: Optional[int] = None,
         attempt_timeout_ms: Optional[int] = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
@@ -80,9 +92,27 @@ class OpenAIClient:
         testing — can be exercised without the openai package, a key, or a
         network. Production never passes them.
         """
-        api_key = (api_key or os.environ.get("OPENAI_API_KEY", "")).strip()
+        api_key = (
+            api_key
+            or os.environ.get("FINSIGHT_LLM_API_KEY", "")
+            or os.environ.get("OPENAI_API_KEY", "")
+        ).strip()
         if not api_key and transport is None:
-            raise LLMUnavailable("OPENAI_API_KEY is not set")
+            raise LLMUnavailable("no LLM API key set (FINSIGHT_LLM_API_KEY / OPENAI_API_KEY)")
+
+        self.base_url = (
+            base_url or os.environ.get("FINSIGHT_LLM_BASE_URL", "").strip() or None
+        )
+
+        model = (model or os.environ.get("FINSIGHT_LLM_MODEL", "")).strip()
+        if not model:
+            if self.base_url:
+                raise LLMUnavailable(
+                    "FINSIGHT_LLM_MODEL must be set when FINSIGHT_LLM_BASE_URL is used — "
+                    f"{DEFAULT_MODEL!r} does not exist on other providers"
+                )
+            model = DEFAULT_MODEL
+        self.model = model
 
         if transport is not None:
             self._openai = openai_module
@@ -95,8 +125,10 @@ class OpenAIClient:
 
             self._openai = openai
             # max_retries=0: retry policy lives here, where the deadline is known.
-            self._client = openai.OpenAI(api_key=api_key, max_retries=0)
-        self.model = model or os.environ.get("FINSIGHT_LLM_MODEL", DEFAULT_MODEL)
+            kwargs = {"api_key": api_key, "max_retries": 0}
+            if self.base_url:
+                kwargs["base_url"] = self.base_url
+            self._client = openai.OpenAI(**kwargs)
         self.deadline_ms = deadline_ms or int(
             os.environ.get("FINSIGHT_LLM_DEADLINE_MS", llm_deadline_ms())
         )
