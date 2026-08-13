@@ -146,7 +146,7 @@ export default function GoalScreen(): React.JSX.Element {
                 onChangeText={setTargetAmount}
                 placeholder="0.00"
                 placeholderTextColor="rgba(255,255,255,0.4)"
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
                 returnKeyType="next"
               />
             </View>

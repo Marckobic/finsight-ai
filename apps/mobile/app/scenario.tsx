@@ -294,7 +294,7 @@ export default function ScenarioScreen(): React.JSX.Element {
                   onChangeText={setAmount}
                   placeholder="0.00"
                   placeholderTextColor="rgba(255,255,255,0.4)"
-                  keyboardType="numeric"
+                  keyboardType="decimal-pad"
                   returnKeyType="done"
                 />
               </View>

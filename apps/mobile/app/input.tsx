@@ -67,7 +67,7 @@ function InputField({
           onChangeText={onChange}
           placeholder={placeholder}
           placeholderTextColor="rgba(255,255,255,0.4)"
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           returnKeyType="next"
         />
         {suffix ? <Text style={fieldStyles.suffix}>{suffix}</Text> : null}
@@ -259,7 +259,7 @@ export default function InputScreen(): React.JSX.Element {
                     onChangeText={set("savingsBalance")}
                     placeholder="0.00"
                     placeholderTextColor="rgba(255,255,255,0.4)"
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                   />
                 </View>
               </View>
@@ -273,7 +273,7 @@ export default function InputScreen(): React.JSX.Element {
                     onChangeText={set("emergencyReserve")}
                     placeholder="0.00"
                     placeholderTextColor="rgba(255,255,255,0.4)"
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                   />
                 </View>
               </View>
