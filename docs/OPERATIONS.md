@@ -48,12 +48,28 @@ allowance is visible without reading logs.
 | `EXPO_PUBLIC_API_URL` | **Required in production.** |
 | `EXPO_PUBLIC_POSTHOG_KEY` | Optional; activates PostHog in `lib/analytics.ts`. |
 
-`EXPO_PUBLIC_*` values are inlined at **build** time. Editing `apps/mobile/.env`
-does not change a deployed app: set the variable in the Vercel project settings
-and redeploy. There is no longer a localhost fallback in production builds — a
-missing value throws at startup rather than shipping an app that points at a
-developer's laptop, which is what made every deployed request fail at the most
-expensive step, immediately after the user entered their finances.
+`EXPO_PUBLIC_*` values are inlined at **build** time — and in this project the
+build runs on your machine, not on Vercel:
+
+```
+cd apps/mobile
+npx expo export --platform web --clear   # <- .env is read HERE
+vercel --prod                            # <- uploads the finished dist/
+```
+
+`vercel.json` sets `outputDirectory: dist` and `package.json` has no build
+script, so Vercel serves a pre-built bundle and never runs a build. **A variable
+set in the Vercel dashboard has no effect.** The value that ships is whatever
+`apps/mobile/.env` contained when `expo export` ran.
+
+There is no localhost fallback in production builds. A missing value surfaces as
+a `CONFIG_ERROR` in the app's error card rather than shipping a bundle that
+points at a developer's laptop — which is what made every deployed request fail
+at the most expensive step, immediately after the user entered their finances.
+
+`apps/mobile/app.json` also carries `extra.apiUrl`. Nothing reads it; the app
+uses `process.env.EXPO_PUBLIC_API_URL` only. Keep the two in sync or drop the
+`extra.apiUrl` field, otherwise it reads like configuration that works.
 
 ## Health and metrics
 

@@ -21,23 +21,27 @@ import type {
 
 /**
  * EXPO_PUBLIC_* values are inlined at BUILD time, not read at runtime.
- * Changing .env is therefore not enough for a deployed app: set
- * EXPO_PUBLIC_API_URL in the Vercel project settings and redeploy.
+ *
+ * This app is deployed as a PRE-BUILT bundle: `expo export` runs locally and
+ * `vercel --prod` uploads the resulting dist/. Vercel never builds it, so a
+ * variable set in the Vercel dashboard has no effect. The value that ships is
+ * whatever apps/mobile/.env held at export time.
  *
  * There is no localhost fallback in production builds. A forgotten variable
  * used to produce an app that silently pointed at the developer's machine —
  * every user got a network error at the most expensive step, right after
- * entering their finances. Failing loudly at startup is cheaper.
+ * entering their finances. Failing loudly is cheaper.
  */
-const BASE_URL = resolveBaseUrl();
+// Resolved per request, not at module load: a config error should surface in
+// the app's ErrorCard, not as a blank screen from a throw during import.
 
 function resolveBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (configured) return configured.replace(/\/$/, "");
   if (__DEV__) return "http://localhost:8000";
   throw new Error(
-    "EXPO_PUBLIC_API_URL is not set. Set it in the Vercel project settings " +
-      "and redeploy — the value is baked in at build time."
+    "EXPO_PUBLIC_API_URL is not set. Put it in apps/mobile/.env and re-run " +
+      "`expo export` — the value is baked into the bundle at export time."
   );
 }
 
@@ -54,9 +58,23 @@ async function apiFetch<T>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
+  let baseUrl: string;
+  try {
+    baseUrl = resolveBaseUrl();
+  } catch {
+    clearTimeout(timer);
+    throw {
+      status: "error",
+      message:
+        "The app was built without an API URL. Set EXPO_PUBLIC_API_URL in " +
+        "apps/mobile/.env, re-run `expo export`, and redeploy.",
+      code: "CONFIG_ERROR",
+    } satisfies ApiError;
+  }
+
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
+    response = await fetch(`${baseUrl}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
