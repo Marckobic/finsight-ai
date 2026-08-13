@@ -47,6 +47,11 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta name="apple-mobile-web-app-title" content="FinSight" />
         <meta name="format-detection" content="telephone=no" />
 
+        {/* Served from apps/mobile/public/ at the site root. */}
+        <link rel="icon" href="/icon-192.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+
         {/* Keeps react-native-web ScrollViews scrolling natively on web. */}
         <ScrollViewStyleReset />
 
