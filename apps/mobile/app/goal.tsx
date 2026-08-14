@@ -22,7 +22,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "../components/BottomNav";
 import { COLORS, FONT, RADIUS, SPACING } from "../constants/theme";
-import { EVENTS, track } from "../lib/analytics";
+import { EVENTS, track, moneyBucket } from "../lib/analytics";
 import { useStore } from "../lib/store";
 import type { GoalData } from "../lib/types";
 
@@ -71,7 +71,10 @@ export default function GoalScreen(): React.JSX.Element {
     const goal = validate();
     if (!goal) return;
     dispatch({ type: "SET_GOAL", payload: goal });
-    track("goal_created", { goal_type: goal.type, target_amount: goal.target_amount });
+    track("goal_created", {
+      goal_type: goal.type,
+      goal_amount_bucket: moneyBucket(goal.target_amount),
+    });
     router.push("/input");
   }
 

@@ -22,7 +22,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "../components/BottomNav";
 import { COLORS, FONT, RADIUS, SPACING } from "../constants/theme";
-import { EVENTS, track } from "../lib/analytics";
+import { EVENTS, track, moneyBucket } from "../lib/analytics";
 import { useStore } from "../lib/store";
 import type { FinancialSnapshot } from "../lib/types";
 
@@ -163,7 +163,7 @@ export default function InputScreen(): React.JSX.Element {
     const snapshot = validate();
     if (!snapshot) return;
     dispatch({ type: "SET_SNAPSHOT", payload: snapshot });
-    track("snapshot_submitted", { monthly_cashflow: surplus });
+    track("snapshot_submitted", { cashflow_bucket: moneyBucket(surplus) });
     router.push("/baseline");
   }
 

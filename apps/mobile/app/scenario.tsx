@@ -28,7 +28,7 @@ import { COLORS, FONT, RADIUS, SPACING } from "../constants/theme";
 import { fetchExplanation, fetchScenario } from "../lib/api";
 import { useStore } from "../lib/store";
 import type { AIQualitySummary, ApiError, BehaviorType } from "../lib/types";
-import { EVENTS, track } from "../lib/analytics";
+import { EVENTS, track, moneyBucket } from "../lib/analytics";
 import type { ScenarioResult, AIExplanationOutput } from "../lib/types";
 
 // ── Offline fallbacks ────────────────────────────────────────────────────────
@@ -115,7 +115,10 @@ export default function ScenarioScreen(): React.JSX.Element {
   async function handleSimulate() {
     if (!state.snapshot || !b) { setApiError("Missing data. Please go back."); return; }
     if (amountNum <= 0) { setApiError("Enter a positive monthly amount."); return; }
-    track("scenario_opened", { behavior_type: behaviorType, amount: amountNum });
+    track("scenario_opened", {
+      behavior_type: behaviorType,
+      amount_bucket: moneyBucket(amountNum),
+    });
     setLoading(true);
     setApiError(null);
     setIsOffline(false);
@@ -161,7 +164,7 @@ export default function ScenarioScreen(): React.JSX.Element {
           },
         });
         setIsOffline(true);
-        track(EVENTS.BASELINE_OFFLINE, { amount: amountNum });
+        track(EVENTS.BASELINE_OFFLINE, { amount_bucket: moneyBucket(amountNum) });
       } else {
         setApiError(e.message ?? "Simulation failed.");
       }

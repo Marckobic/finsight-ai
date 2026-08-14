@@ -53,13 +53,12 @@ from shared_types.models import ScenarioResult
 from apps.api.events import log_event
 from analytics.models import AnalyticsEvent
 from analytics.store import insert_event
-from analytics.metrics import calculate_session_summary, calculate_funnel
-from validation_gateway.health import health_tracker
 from apps.api.middleware.timing import TimingMiddleware
-from apps.api.ratelimit import client_key, explain_budget, explain_ip_limiter
+from apps.api.ratelimit import client_key, explain_ip_limiter
 from apps.api.routers import baseline as baseline_router
 from apps.api.routers import scenario as scenario_router
 from apps.api.routers import explain as explain_router
+from apps.api.routers import analytics as analytics_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -216,6 +215,7 @@ async def generic_error_handler(request, exc: Exception) -> JSONResponse:
 app.include_router(baseline_router.router)
 app.include_router(scenario_router.router)
 app.include_router(explain_router.router)
+app.include_router(analytics_router.router)
 
 # ---------------------------------------------------------------------------
 # Health check
@@ -226,21 +226,6 @@ app.include_router(explain_router.router)
 async def ingest_event(event: AnalyticsEvent) -> dict:
     insert_event(event)
     return {"ok": True}
-
-
-@app.get("/analytics/session/{session_id}")
-async def session_summary(session_id: str) -> dict:
-    return calculate_session_summary(session_id)
-
-
-@app.get("/analytics/funnel/{session_id}")
-async def session_funnel(session_id: str) -> dict:
-    return calculate_funnel(session_id)
-
-
-@app.get("/analytics/ai-health")
-async def ai_health() -> dict:
-    return {**health_tracker.summary(), "daily_ai_budget": explain_budget.state()}
 
 
 @app.get("/health")

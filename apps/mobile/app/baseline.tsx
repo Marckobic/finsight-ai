@@ -33,7 +33,7 @@ function buildOfflineFallback(snapshot: any): BaselineResult {
     goal_already_met: balance >= goal,
   };
 }
-import { EVENTS, track } from "../lib/analytics";
+import { EVENTS, track, moneyBucket, percentBucket } from "../lib/analytics";
 
 function fmtCurrency(n: number): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -143,10 +143,12 @@ export default function BaselineScreen(): React.JSX.Element {
       const res = await fetchBaseline(state.snapshot);
       dispatch({ type: "SET_BASELINE", payload: res.data });
       setIsOffline(false);
+      // time_to_goal is a duration, not an amount — it is the product's own
+      // metric and stays exact. The two money-shaped fields are banded.
       track(EVENTS.BASELINE_GENERATED, {
         time_to_goal: res.data.time_to_goal_months,
-        cashflow: res.data.monthly_cashflow,
-        savings_rate: res.data.savings_rate,
+        cashflow_bucket: moneyBucket(res.data.monthly_cashflow),
+        savings_rate_bucket: percentBucket(res.data.savings_rate),
       });
     } catch (err) {
       const e = err as ApiError;
@@ -158,7 +160,7 @@ export default function BaselineScreen(): React.JSX.Element {
         const fallback = buildOfflineFallback(state.snapshot);
         dispatch({ type: "SET_BASELINE", payload: fallback });
         setIsOffline(true);
-        track(EVENTS.BASELINE_OFFLINE, { cashflow: fallback.monthly_cashflow });
+        track(EVENTS.BASELINE_OFFLINE, { cashflow_bucket: moneyBucket(fallback.monthly_cashflow) });
       } else {
         setApiError(e.message ?? "Failed to compute baseline.");
       }

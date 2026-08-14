@@ -22,6 +22,8 @@ from core_engine.baseline import build_baseline_projection
 from shared_types.models import BaselineResult, FinancialSnapshot
 from validation_gateway.validator import validate_financial_inputs
 
+from analytics.buckets import money_bucket, percent_bucket
+
 from apps.api.events import log_event
 
 router = APIRouter()
@@ -65,13 +67,19 @@ async def baseline_endpoint(snapshot: FinancialSnapshot) -> BaselineResponse | J
     # Step 2: Deterministic engine — single source of truth
     result = build_baseline_projection(snapshot)
 
-    # Step 3: Structured event log
+    # Step 3: Structured event log.
+    #
+    # Bucketed, not exact. This line used to carry the user's monthly cashflow
+    # and savings rate next to their user_id, into stdout, which on Railway is
+    # retained log output. A band answers every operational question the log is
+    # read for ("are people with thin surplus erroring out?") and stores none of
+    # anyone's finances.
     log_event(
         "BASELINE_COMPUTED",
         {
             "user_id": snapshot.user_id,
-            "cashflow": result.monthly_cashflow,
-            "savings_rate": result.savings_rate,
+            "cashflow_bucket": money_bucket(result.monthly_cashflow),
+            "savings_rate_bucket": percent_bucket(result.savings_rate),
             "time_to_goal_months": result.time_to_goal_months,
         },
     )

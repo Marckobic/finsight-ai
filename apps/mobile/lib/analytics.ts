@@ -45,6 +45,48 @@ export type EventName = typeof EVENTS[keyof typeof EVENTS];
 // ── In-memory store ───────────────────────────────────────────────────────────
 const _events: Array<{ name: string; ts: number; props: Record<string, unknown> }> = [];
 
+// ── Coarsening ────────────────────────────────────────────────────────────────
+//
+// Nothing money-shaped leaves the device. The landing page promises "no data
+// sharing — numbers stay in-session only", and this file was posting
+// target_amount, monthly_cashflow and savings_rate to /events, where they were
+// written to a database keyed by session_id.
+//
+// Bands answer the questions the funnel is actually asked — do people with a
+// thin surplus drop out earlier? — without a personal figure ever being stored.
+// Edges match analytics/buckets.py on the backend; change both together.
+
+const MONEY_EDGES: Array<[number, string]> = [
+  [0, "0"], [250, "1-250"], [500, "250-500"], [1000, "500-1000"],
+  [2500, "1000-2500"], [5000, "2500-5000"], [10000, "5000-10000"],
+];
+
+const PERCENT_EDGES: Array<[number, string]> = [
+  [0, "0"], [5, "0-5"], [10, "5-10"], [20, "10-20"], [30, "20-30"], [50, "30-50"],
+];
+
+function band(
+  value: number | null | undefined,
+  edges: Array<[number, string]>,
+  top: string
+): string {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "unknown";
+  const n = Number(value);
+  if (n < 0) return "negative";
+  for (const [edge, label] of edges) if (n <= edge) return label;
+  return top;
+}
+
+/** USD per month → a band label. Never returns the input. */
+export function moneyBucket(value: number | null | undefined): string {
+  return band(value, MONEY_EDGES, "10000+");
+}
+
+/** A rate already expressed in percent (5 === 5%). */
+export function percentBucket(value: number | null | undefined): string {
+  return band(value, PERCENT_EDGES, "50+");
+}
+
 // ── Core track function ───────────────────────────────────────────────────────
 export function track(
   eventName: EventName | string,

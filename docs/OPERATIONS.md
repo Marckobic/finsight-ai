@@ -16,6 +16,7 @@ it never takes the service down.**
 | `FINSIGHT_DB_PATH` | `./.data/finsight_events.db` | **Set this to a mounted volume in production.** See below. |
 | `FINSIGHT_ALLOWED_ORIGINS` | `*` | Comma-separated origin list to lock CORS down without a code change. |
 | `FINSIGHT_EXPLAIN_IP_HOURLY` | 20 | Per-IP `/explain` calls per hour before 429. |
+| `FINSIGHT_ANALYTICS_TOKEN` | — | **Required to read analytics.** Unset, every `/analytics/*` endpoint returns 503. |
 | `FINSIGHT_EXPLAIN_DAILY_BUDGET` | 2000 | Global paid calls per day. Past the cap the endpoint serves the deterministic template — the product degrades, the bill does not. |
 
 ### Using a provider other than OpenAI
@@ -48,6 +49,40 @@ Two things to keep in mind when switching provider:
   product degrades, it does not break — but set `FINSIGHT_EXPLAIN_DAILY_BUDGET`
   below the provider's daily cap so your own limiter trips first and the reason
   shows up in the logs.
+
+### Reading the analytics
+
+`GET /analytics/dashboard?token=…` is a single page you can open on a phone:
+session counts, the funnel by stage, conversion from the previous stage, and
+which step lost the most people. `GET /analytics/overview?token=…` is the same
+data as JSON.
+
+Everything under `/analytics/*` is behind `FINSIGHT_ANALYTICS_TOKEN`. With the
+variable unset the endpoints return 503 rather than serving openly: these
+responses describe real people's behaviour, the API is public, and "open unless
+someone remembers to configure it" is how internal dashboards end up indexed.
+
+The token is accepted as `?token=` as well as an `X-Analytics-Token` header,
+because the point is opening it on a phone. A query token leaks into browser
+history and proxy logs — fine for a personal dashboard over a demo round, not a
+pattern to carry further.
+
+Generate one with `python -c "import secrets;print(secrets.token_urlsafe(32))"`.
+
+### What is stored about a user
+
+Nothing money-shaped. Amounts are coarsened to bands
+(`analytics/buckets.py` and the matching helpers in `lib/analytics.ts`) before
+they are stored or logged: `cashflow_bucket: "1000-2500"`, never `1450`. The
+`/baseline` stdout log was carrying the user's cashflow and savings rate next to
+their `user_id`; it now carries bands.
+
+What buckets do **not** change: `/baseline` and `/scenario` receive the real
+figures, because the engine runs server-side. Transmission is inherent to the
+architecture, persistence is not. The accurate public claim is **"we do not
+store your financial data"** — the landing page's "numbers stay in-session only"
+implies they never leave the browser, which was never true and cannot be made
+true without moving the engine into the client.
 
 ### The analytics volume
 
