@@ -84,7 +84,6 @@ export default function GoalScreen(): React.JSX.Element {
         {/* ── Top bar ── */}
         <View style={styles.topBar}>
           <Text style={styles.brand}>FinSight.ai</Text>
-          <MaterialIcons name="account-circle" size={26} color={COLORS.DISABLED} />
         </View>
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

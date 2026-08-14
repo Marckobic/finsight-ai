@@ -173,11 +173,6 @@ export default function InputScreen(): React.JSX.Element {
         {/* ── Top bar ── */}
         <View style={styles.topBar}>
           <Text style={styles.brand}>FinSight.ai</Text>
-          <View style={styles.navLinks}>
-            <Text style={styles.navInactive}>Goal</Text>
-            <Text style={styles.navActive}>Input</Text>
-            <Text style={styles.navInactive}>Baseline</Text>
-          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -364,19 +359,6 @@ const styles = StyleSheet.create({
     fontWeight: FONT.WEIGHT_BOLD,
     color: COLORS.ORANGE,
     letterSpacing: -0.5,
-  },
-  navLinks: { flexDirection: "row", gap: SPACING.MD },
-  navActive: {
-    fontSize: FONT.SIZE_SM,
-    fontWeight: FONT.WEIGHT_BOLD,
-    color: COLORS.ORANGE,
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.ORANGE,
-    paddingBottom: 2,
-  },
-  navInactive: {
-    fontSize: FONT.SIZE_SM,
-    color: COLORS.DISABLED,
   },
 
   content: { paddingHorizontal: SPACING.LG, paddingBottom: 40 },

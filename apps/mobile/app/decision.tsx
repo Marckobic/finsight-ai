@@ -46,7 +46,6 @@ export default function DecisionScreen(): React.JSX.Element {
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
         <Text style={styles.brand}>FinSight.ai</Text>
-        <Text style={styles.navActive}>Decision</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -166,14 +165,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255,255,255,0.05)",
   },
   brand: { fontSize: 20, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.ORANGE, letterSpacing: -0.5 },
-  navActive: {
-    fontSize: FONT.SIZE_SM,
-    fontWeight: FONT.WEIGHT_BOLD,
-    color: COLORS.ORANGE,
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.ORANGE,
-    paddingBottom: 2,
-  },
 
   content: { paddingHorizontal: SPACING.LG, paddingBottom: 40 },
 

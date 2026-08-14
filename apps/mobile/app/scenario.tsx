@@ -196,10 +196,6 @@ export default function ScenarioScreen(): React.JSX.Element {
         {/* ── Top bar ── */}
         <View style={styles.topBar}>
           <Text style={styles.brand}>FinSight.ai</Text>
-          <View style={styles.navLinks}>
-            <Text style={styles.navInactive}>Baseline</Text>
-            <Text style={styles.navActive}>Scenario</Text>
-          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -473,16 +469,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255,255,255,0.05)",
   },
   brand: { fontSize: 20, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.ORANGE, letterSpacing: -0.5 },
-  navLinks: { flexDirection: "row", gap: SPACING.MD },
-  navActive: {
-    fontSize: FONT.SIZE_SM,
-    fontWeight: FONT.WEIGHT_BOLD,
-    color: COLORS.ORANGE,
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.ORANGE,
-    paddingBottom: 2,
-  },
-  navInactive: { fontSize: FONT.SIZE_SM, color: COLORS.DISABLED },
 
   content: { paddingHorizontal: SPACING.LG, paddingBottom: 40 },
 
