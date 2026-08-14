@@ -332,8 +332,26 @@ const styles = StyleSheet.create({
     paddingLeft: 0,
     paddingRight: SPACING.MD,
     paddingVertical: SPACING.MD,
+    // react-native-web renders this as an <input>, which draws the browser's
+    // focus ring — a square outline that escapes the rounded row now that it
+    // is no longer clipped. The row below carries the focus state instead.
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as const } : null),
   },
 
+
+  errorText: {
+    color: COLORS.ERROR,
+    fontSize: FONT.SIZE_SM,
+    fontWeight: FONT.WEIGHT_SEMIBOLD,
+    lineHeight: 20,
+    backgroundColor: "rgba(255,180,171,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(255,180,171,0.35)",
+    borderRadius: RADIUS.SM,
+    paddingVertical: SPACING.SM,
+    paddingHorizontal: SPACING.MD,
+    marginBottom: SPACING.MD,
+  },
 
   ctaButton: {
     flexDirection: "row",

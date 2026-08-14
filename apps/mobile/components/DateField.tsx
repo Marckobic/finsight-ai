@@ -51,6 +51,13 @@ export function DateField({ value, onChange, onSubmit }: Props): React.JSX.Eleme
       <View style={styles.row}>
         {React.createElement("input", {
           type: "date",
+          // The browser localises this widget to ITS OWN locale, not the
+          // document's — a Russian Chrome renders "ДД.ММ.ГГГГ" and Russian
+          // month names inside an English app. lang pins the field to en-US so
+          // the app reads as one language. A user abroad still gets their own
+          // calendar conventions from the OS picker on mobile, which is the
+          // part that should stay local.
+          lang: "en-US",
           value,
           min: new Date().toISOString().slice(0, 10),
           onChange: (event: { target: { value: string } }) => onChange(event.target.value),
