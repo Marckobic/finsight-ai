@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNav } from "../components/BottomNav";
+import { DateField } from "../components/DateField";
 import { COLORS, FONT, RADIUS, SPACING } from "../constants/theme";
 import { EVENTS, track, moneyBucket } from "../lib/analytics";
 import { useStore } from "../lib/store";
@@ -49,12 +50,11 @@ export default function GoalScreen(): React.JSX.Element {
   const [deadline, setDeadline] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // DateField hands back an ISO date (YYYY-MM-DD), which is what the backend
+  // wants — no format juggling, and no "enter deadline as MM/DD/YYYY" error to
+  // hit in the first place.
   function parseDeadline(raw: string): string | null {
-    // Accept MM/DD/YYYY → convert to YYYY-MM-DD for backend
-    const match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!match) return null;
-    const [, mm, dd, yyyy] = match;
-    return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
   }
 
   function validate(): GoalData | null {
@@ -62,7 +62,7 @@ export default function GoalScreen(): React.JSX.Element {
     const amount = parseFloat(targetAmount.replace(/,/g, ""));
     if (isNaN(amount) || amount <= 0) { setError("Enter a valid target amount."); return null; }
     const isoDeadline = parseDeadline(deadline);
-    if (!isoDeadline) { setError("Enter deadline as MM/DD/YYYY."); return null; }
+    if (!isoDeadline) { setError("Pick a deadline."); return null; }
     setError(null);
     return { type: selectedType, target_amount: amount, deadline: isoDeadline };
   }
@@ -157,20 +157,8 @@ export default function GoalScreen(): React.JSX.Element {
 
           {/* ── Deadline ── */}
           <View style={styles.inputSection}>
-            <Text style={styles.fieldLabel}>By when? (MM/DD/YYYY)</Text>
-            <View style={styles.dateRow}>
-              <TextInput
-                style={styles.dateInput}
-                value={deadline}
-                onChangeText={setDeadline}
-                placeholder="12/31/2027"
-                placeholderTextColor="rgba(255,255,255,0.4)"
-                keyboardType="numbers-and-punctuation"
-                returnKeyType="done"
-                onSubmitEditing={handleContinue}
-              />
-              <MaterialIcons name="calendar-today" size={20} color={COLORS.DISABLED} style={styles.calIcon} />
-            </View>
+            <Text style={styles.fieldLabel}>By when?</Text>
+            <DateField value={deadline} onChange={setDeadline} onSubmit={handleContinue} />
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -181,10 +169,14 @@ export default function GoalScreen(): React.JSX.Element {
             <MaterialIcons name="bolt" size={20} color={COLORS.TEXT_ON_ORANGE} />
           </TouchableOpacity>
 
-          {/* ── Encryption note ── */}
+          {/* There is no end-to-end encryption in this system and there never
+              was — the figures are sent to the engine over TLS and computed
+              server-side. Claiming a security property you do not have is worse
+              than claiming none: it is the one line a security-minded user
+              would check. What is true is that nothing is stored. */}
           <View style={styles.securityRow}>
             <MaterialIcons name="lock" size={12} color={COLORS.DISABLED} />
-            <Text style={styles.securityText}>End-to-End Encryption Active</Text>
+            <Text style={styles.securityText}>Nothing you enter is stored</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -321,42 +313,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.SURFACE_HIGHEST,
     borderRadius: RADIUS.MD,
-    overflow: "hidden",
   },
   dollarSign: {
     fontSize: 28,
     fontWeight: FONT.WEIGHT_BOLD,
     color: COLORS.PRIMARY,
     paddingLeft: SPACING.MD,
+    paddingRight: SPACING.SM,
   },
   amountInput: {
     flex: 1,
     fontSize: 28,
     fontWeight: FONT.WEIGHT_EXTRABOLD,
     color: COLORS.TEXT_ON_SURFACE,
-    padding: SPACING.MD,
+    // Left padding belongs to the "$" prefix. Padding it here too put the
+    // caret on top of the first digit, and overflow:hidden on the row clipped
+    // what stuck out.
+    paddingLeft: 0,
+    paddingRight: SPACING.MD,
+    paddingVertical: SPACING.MD,
   },
 
-  dateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.SURFACE_HIGHEST,
-    borderRadius: RADIUS.MD,
-  },
-  dateInput: {
-    flex: 1,
-    fontSize: FONT.SIZE_LG,
-    fontWeight: FONT.WEIGHT_BOLD,
-    color: COLORS.TEXT_ON_SURFACE,
-    padding: SPACING.MD,
-  },
-  calIcon: { marginRight: SPACING.MD },
-
-  errorText: {
-    color: COLORS.ERROR,
-    fontSize: FONT.SIZE_SM,
-    marginBottom: SPACING.MD,
-  },
 
   ctaButton: {
     flexDirection: "row",

@@ -191,7 +191,7 @@ export default function InputScreen(): React.JSX.Element {
           {/* ── Income Streams ── */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={styles.sectionHeaderText}>
                 <Text style={styles.sectionLabel}>Annual Inflow</Text>
                 <Text style={styles.sectionTitle}>Income Streams</Text>
                 {state.goal?.type === "extend_runway" && (
@@ -423,6 +423,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: SPACING.LG,
+    gap: SPACING.SM,
+  },
+  // Without flex:1 here the founder hint sets this column's width and pushes
+  // the toggle outside the card. With it, the hint wraps and the toggle stays
+  // put — flexShrink:0 keeps the two buttons from being squeezed instead.
+  sectionHeaderText: {
+    flex: 1,
+    minWidth: 0,
   },
   sectionLabel: {
     fontSize: FONT.SIZE_XS,
@@ -439,6 +447,7 @@ const styles = StyleSheet.create({
   },
   toggleRow: {
     flexDirection: "row",
+    flexShrink: 0,
     backgroundColor: COLORS.SURFACE_HIGHEST,
     borderRadius: RADIUS.SM,
     padding: 3,
