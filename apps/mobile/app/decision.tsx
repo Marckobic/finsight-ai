@@ -13,6 +13,7 @@ import { router } from "expo-router";
 import React from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AdviceNote } from "../components/AdviceNote";
 import { BottomNav } from "../components/BottomNav";
 import { COLORS, FONT, RADIUS, SPACING } from "../constants/theme";
 import { useStore } from "../lib/store";
@@ -95,6 +96,7 @@ export default function DecisionScreen(): React.JSX.Element {
                 <Text style={styles.explainText}>{explanation.recommendation}</Text>
               </View>
             )}
+            {explanation && <AdviceNote />}
           </View>
         )}
 

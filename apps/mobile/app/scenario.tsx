@@ -23,6 +23,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AdherenceSlider from "../components/AdherenceSlider";
+import { AdviceNote } from "../components/AdviceNote";
 import { BottomNav } from "../components/BottomNav";
 import { COLORS, FONT, RADIUS, SPACING } from "../constants/theme";
 import { fetchExplanation, fetchScenario } from "../lib/api";
@@ -247,12 +248,13 @@ export default function ScenarioScreen(): React.JSX.Element {
               </Text>
             </View>
           )}
+          {explanation && s && <AdviceNote />}
 
           {/* ── AI Quality banner ── */}
           {quality && s && !qualityDismissed && quality.status === "degraded" && (
             <View style={styles.qualityBannerWarn}>
               <Text style={styles.qualityBannerText}>
-                ⚠ AI confidence reduced — verify with your advisor
+                ⚠ AI confidence reduced — check the figures above
               </Text>
               <TouchableOpacity onPress={() => setQualityDismissed(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <MaterialIcons name="close" size={14} color={COLORS.ORANGE} />
