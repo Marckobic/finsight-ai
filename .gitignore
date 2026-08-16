@@ -14,7 +14,6 @@ dist/
 node_modules/
 .next/
 out/
-dist/
 *.tsbuildinfo
 .env.local
 .env.*.local
@@ -46,3 +45,13 @@ google-service-account.json
 *.p8
 *.p12
 *.mobileprovision
+
+.vercel
+
+# local tooling / artifacts
+.claude/
+**/.claude/
+.coverage
+.data/
+_to_delete/
+evals/report.json
