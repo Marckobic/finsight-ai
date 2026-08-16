@@ -37,7 +37,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://your-app.railway.app",
+      "apiUrl": "https://finsight-api-production.up.railway.app",
       "eas": {
         "projectId": "YOUR_EAS_PROJECT_ID"
       }
