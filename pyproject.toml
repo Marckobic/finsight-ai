@@ -44,6 +44,14 @@ target-version = "py312"
 select = ["E", "F", "W", "I"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+# E402 = "module level import not at top of file". These two files must extend
+# sys.path before importing any workspace package, because the monorepo is run
+# without a pip install step (same reason conftest.py does it). The imports are
+# deliberately below the bootstrap; moving them up would break the file.
+"apps/api/main.py" = ["E402"]
+"packages/analytics/tests/test_analytics.py" = ["E402"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = false

@@ -1,5 +1,5 @@
 import os
-import tempfile
+
 import pytest
 
 # Use a temp DB for tests
@@ -14,10 +14,9 @@ def tmp_db(tmp_path, monkeypatch):
     monkeypatch.setattr(store_mod, "_DB_PATH", db)
 
 
-from analytics.models import AnalyticsEvent
-from analytics.store import insert_event, get_events
 from analytics.metrics import calculate_dlcr, calculate_funnel, calculate_session_summary
-
+from analytics.models import AnalyticsEvent
+from analytics.store import get_events, insert_event
 
 SESSION = "test-session-001"
 

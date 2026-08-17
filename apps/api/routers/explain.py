@@ -25,18 +25,17 @@ import logging
 import time
 from typing import Optional
 
-from fastapi import APIRouter
-from pydantic import BaseModel
-
 from ai_layer.explain import (
     build_proxy_baseline,
     build_proxy_scenario,
     generate_explanation,
 )
+from fastapi import APIRouter
+from pydantic import BaseModel
 from shared_types.models import AIExplanationInput, AIExplanationOutput
-from validation_gateway.validator import _fallback_output
-from validation_gateway.scorer import AIQualityScore, score_ai_output
 from validation_gateway.health import health_tracker
+from validation_gateway.scorer import AIQualityScore, score_ai_output
+from validation_gateway.validator import _fallback_output
 
 from apps.api.events import log_event
 from apps.api.ratelimit import explain_budget

@@ -1,4 +1,5 @@
 import json
+
 from .store import get_all_events, get_events
 
 

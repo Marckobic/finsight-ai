@@ -15,11 +15,10 @@ SLA budgets (PRD Section 13):
 import logging
 import time
 
+from shared_types.sla import SLA_MS as _SLA_MS
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-
-from shared_types.sla import SLA_MS as _SLA_MS
 
 logger = logging.getLogger(__name__)
 

@@ -24,13 +24,13 @@ likely it was to be discarded.
 from typing import Literal
 
 from pydantic import BaseModel
-
 from shared_types.models import (
     AIExplanationOutput,
     BaselineResult,
     ScenarioResult,
     ValidationResult,
 )
+
 from validation_gateway.language_guard import find_advisory
 from validation_gateway.numeric_guard import build_allowed, find_unverified
 

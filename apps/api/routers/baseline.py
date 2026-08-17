@@ -14,15 +14,13 @@ SLA: < 300 ms (enforced by TimingMiddleware header; this layer is deterministic
 
 import time
 
+from analytics.buckets import money_bucket, percent_bucket
+from core_engine.baseline import build_baseline_projection
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-
-from core_engine.baseline import build_baseline_projection
 from shared_types.models import BaselineResult, FinancialSnapshot
 from validation_gateway.validator import validate_financial_inputs
-
-from analytics.buckets import money_bucket, percent_bucket
 
 from apps.api.events import log_event
 

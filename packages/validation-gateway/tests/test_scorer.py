@@ -4,16 +4,14 @@ Quality scorer + health tracker tests.
 """
 
 import pytest
-
 from shared_types.models import (
     AIExplanationOutput,
     BaselineResult,
     ScenarioResult,
     ValidationResult,
 )
-from validation_gateway.scorer import AIQualityScore, score_ai_output
 from validation_gateway.health import AIHealthTracker
-
+from validation_gateway.scorer import score_ai_output
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -10,7 +10,6 @@ still exercising the real retry and deadline logic.
 """
 
 import pytest
-
 from ai_layer.llm_client import DEFAULT_MODEL, LLMResult, LLMUnavailable, OpenAIClient
 
 PROMPT = "Return JSON only."

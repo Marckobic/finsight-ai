@@ -3,12 +3,9 @@ tests/analytics/test_overview.py
 The cross-session funnel — the only view that answers "where do people fall out".
 """
 
-import os
-import tempfile
-
-import pytest
 
 import analytics.store as store_mod
+import pytest
 
 
 @pytest.fixture(autouse=True)

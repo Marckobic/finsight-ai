@@ -28,11 +28,12 @@ from ai_layer.explain import (
     generate_explanation,
     get_llm_client,
 )
-from evals.cases import EvalCase, all_cases
-from evals.gates import evaluate
 from shared_types.models import AIExplanationOutput
 from validation_gateway.scorer import score_ai_output
 from validation_gateway.validator import _fallback_output
+
+from evals.cases import EvalCase, all_cases
+from evals.gates import evaluate
 
 
 @dataclass

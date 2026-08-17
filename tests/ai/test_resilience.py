@@ -12,6 +12,7 @@ mock was in place, because the mock raised nothing.
 
 import os
 
+import pytest
 from ai_layer.explain import (
     AILayerError,
     MockLLMClient,
@@ -20,8 +21,6 @@ from ai_layer.explain import (
     reset_llm_client,
 )
 from shared_types.models import AIExplanationInput
-
-import pytest
 
 
 def make_input(**kw) -> AIExplanationInput:

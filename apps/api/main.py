@@ -34,12 +34,16 @@ for _pkg in [
         sys.path.insert(0, _path)
 
 # ---------------------------------------------------------------------------
-# Standard library + third-party imports
+# Standard library, third-party, and workspace packages. The last group is only
+# importable because of the bootstrap above; isort groups them with third-party
+# since they are not installed relative to this file.
 # ---------------------------------------------------------------------------
 import logging
 import traceback
 from typing import Literal, Optional
 
+from analytics.models import AnalyticsEvent
+from analytics.store import insert_event
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,18 +51,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
 # ---------------------------------------------------------------------------
-# Internal imports (packages now on sys.path)
+# Application modules
 # ---------------------------------------------------------------------------
 from shared_types.models import ScenarioResult
+
 from apps.api.events import log_event
-from analytics.models import AnalyticsEvent
-from analytics.store import insert_event
 from apps.api.middleware.timing import TimingMiddleware
 from apps.api.ratelimit import client_key, explain_ip_limiter
-from apps.api.routers import baseline as baseline_router
-from apps.api.routers import scenario as scenario_router
-from apps.api.routers import explain as explain_router
 from apps.api.routers import analytics as analytics_router
+from apps.api.routers import baseline as baseline_router
+from apps.api.routers import explain as explain_router
+from apps.api.routers import scenario as scenario_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

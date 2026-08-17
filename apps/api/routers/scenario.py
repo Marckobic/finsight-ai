@@ -18,14 +18,10 @@ import time
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-
 from scenario_engine.simulate import simulate_scenario
 from shared_types.models import (
-    BaselineResult,
-    BehaviorChange,
-    FinancialSnapshot,
-    ScenarioResult,
     ScenarioInput,
+    ScenarioResult,
 )
 from validation_gateway.validator import validate_scenario_output
 

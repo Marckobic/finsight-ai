@@ -27,14 +27,13 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Header, Query
-from fastapi.responses import HTMLResponse, JSONResponse
-
 from analytics.metrics import (
     calculate_funnel,
     calculate_overview,
     calculate_session_summary,
 )
+from fastapi import APIRouter, Header, Query
+from fastapi.responses import HTMLResponse, JSONResponse
 from validation_gateway.health import health_tracker
 
 from apps.api.ratelimit import explain_budget
