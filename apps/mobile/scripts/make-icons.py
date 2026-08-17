@@ -19,6 +19,7 @@ into a dark wallpaper, which is what most of the target users have.
 """
 
 import os
+
 from PIL import Image, ImageDraw, ImageFont
 
 ORANGE = "#FF6B00"          # COLORS.ORANGE
