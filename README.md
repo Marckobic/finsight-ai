@@ -1,5 +1,7 @@
 # FinSight.ai
 
+[![CI](https://github.com/Marckobic/finsight-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Marckobic/finsight-ai/actions/workflows/ci.yml)
+
 **How many months can you live on what you have?**
 
 A runway calculator for founders and freelancers. A deterministic engine does
